@@ -186,7 +186,7 @@ EOF
 ```sh
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     isopod/chasm:main \
@@ -202,7 +202,7 @@ _Volume mounts should only be specified for cloud CLIs you have installed on you
 ```sh
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     isopod/chasm:main \
     chasm find
 ```
@@ -247,7 +247,7 @@ _Be aware that this will create cloud resources which cost money. Make sure you 
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
     --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     --env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
@@ -269,7 +269,7 @@ It is important to note that there may be some delay between when the CSPs in de
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
     --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     --env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
@@ -286,7 +286,7 @@ If you wish to login to a different stack backend than the global pulumi default
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
     --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     isopod/chasm:main \
