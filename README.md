@@ -280,7 +280,7 @@ We are excited to hear your feedback and engagement. You can reach us by submitt
 
 ## Contributing
 
-Open source projects flourish with vigorous user contributions, and we'd love to have your additions to our project! In order to make it a good experience, we recommend that you read both the [Code of Conduct](docs/code-of-conduct.md) and our [contributing guide](CONTRIBUTING.md), then checkout the templates for an MR, which may assist you in successfully submitting your first Merge Request (MR) with us. Prospective code contributors might find the good first issue tag useful.
+Open source projects flourish with vigorous user contributions, and we'd love to have your additions to our project! In order to make it a good experience, we recommend that you read both the [Code of Conduct](CODE_OF_CONDUCT.md) and our [contributing guide](CONTRIBUTING.md), then checkout the templates for an MR, which may assist you in successfully submitting your first Merge Request (MR) with us. Prospective code contributors might find the good first issue tag useful.
 
 ## Visuals
 
