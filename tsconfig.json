@@ -1,0 +1,11 @@
+{
+	"extends": "@tsconfig/node-lts/tsconfig.json",
+	"compilerOptions": {
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"inlineSourceMap": true,
+		"strict": true,
+		"outDir": "./dist"
+	},
+	"include": ["src/**/*.ts"]
+}

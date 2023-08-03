@@ -1,0 +1,50 @@
+{
+    "accounts": [
+        {
+            "type": "AwsAccount",
+            "id": "arbitrary-unique-id",
+            "region": "us-east-1",
+            "vpcs": [
+                {
+                    "id":"vpc-xxxxxxxx",
+                    "type":"AwsVpc",
+                    "region":"us-east-1",
+                    "cidr":"xxx.xxx.xxx.xxx/xx",
+                    "subnets": [
+                        {
+                            "id":"subnet-xxxxxxx",
+                            "cidr":"xxx.xxx.xxx.xxx/xx",
+                            "type":"AwsSubnet"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "GcpAccount",
+            "id": "arbitrary-unique-id",
+            "project": "get from 'gcloud projects list'",
+            "vpcs": [
+                {
+                    "id":"xxxxxxxxxxxxxxxxxx",
+                    "type":"GcpVpc",
+                    "projectName":"myProject",
+                    "networkName":"xxxxxx-vpc",
+                    "subnets":[
+                        {
+                            "id":"xxxxxxxxxxxxxxxxxx",
+                            "cidr":"xxx.xxx.xxx.xxx/xx",
+                            "type":"GcpSubnet",
+                            "region":"us-west4"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "AzureAccount",
+            "id": "arbitrary-unique-id",
+            "subscriptionId": "get from 'az account subscription list'"
+        }
+    ]
+}

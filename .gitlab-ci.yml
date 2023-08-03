@@ -1,0 +1,152 @@
+image: node:lts-alpine
+variables:
+  NODE_OPTIONS: "--max_old_space_size=8192"
+include:
+  - remote: https://ci-recipes.s3.us-east-2.amazonaws.com/3/build-docker.yaml
+
+stages:
+  - install
+  - test
+  - compile
+  - deploy
+
+install:
+  stage: install
+  script:
+    - yarn install
+  artifacts:
+    untracked: true
+
+format:
+  tags:
+    - strong-aws
+  stage: test
+  needs:
+    - install
+  script:
+    - yarn run prettier --check ./src
+
+lint:
+  tags:
+    - strong-aws
+  needs:
+    - install
+  stage: test
+  script:
+    - yarn lint --no-fix
+
+test:
+  tags:
+    - strong-aws
+  needs:
+    - install
+  stage: test
+  script:
+    - yarn test --verbose
+  coverage: "/All\\sfiles.*?\\s+(\\d+.\\d+)/"
+  artifacts:
+    reports:
+      junit:
+        - junit.xml
+
+compile typescript to javascript:
+  tags:
+    - strong-aws
+  needs:
+    - install
+  stage: compile
+  script:
+    - yarn build
+  artifacts:
+    paths:
+      - dist
+
+pages:
+  needs: []
+  stage: compile
+  before_script:
+    - apk add --update mdbook
+    - |
+      if test "${CI_DEFAULT_BRANCH}" == "${CI_COMMIT_BRANCH}"; then
+        export PATH_SUFFIX=""
+      else
+        export PATH_SUFFIX="/${CI_COMMIT_REF_SLUG}"
+      fi
+  script:
+    - mdbook build --dest-dir "public${PATH_SUFFIX}"
+    - echo "Built gitlab pages to ${CI_PAGES_URL}${PATH_SUFFIX}"
+  artifacts:
+    paths:
+      - public
+
+build docker:
+  tags:
+    - strong-aws
+  needs:
+    - compile typescript to javascript
+    - install
+  image: docker:$DOCKER_CONTAINER_VERSION
+  services:
+    - docker:$DOCKER_CONTAINER_VERSION-dind
+  stage: deploy
+  cache: {}
+  variables:
+    # Override if necessary - all optional.
+    DOCKER_CONTAINER_VERSION: 20.10.18
+    DOCKER_TLS_CERTDIR: "/certs"
+    WHAT_TAGS_VERSION: "3"
+    LABEL_PRINTER_VERSION: "0.5"
+
+    # For instance, --repo to point to a git repo not in "."
+    EXTRA_WHAT_TAGS_ARGS: ""
+    EXTRA_LABEL_PRINTER_ARGS: ""
+
+    # If, for instance, you have build-time args to supply, you could set this to "--build-arg foo=bar".
+    EXTRA_DOCKER_BUILD_ARGS: ""
+    DOCKER_BUILD_CONTEXT: "."
+    # Defaults to approximately "registry.gitlab.com/<group>/<project name>"
+    # If you have more than one image, override this so you don't push them to the same place
+    PUSH_DESTINATION: "${CI_REGISTRY_IMAGE}"
+  script:
+    - echo -e "\e[0Ksection_start:`date +%s`:fetch_tools[collapsed=true]\r\e[0KFetch what-tags and label-printer"
+    - 'wget --header "Authorization: Bearer $CI_JOB_TOKEN" https://gitlab.com/api/v4/projects/23172343/packages/generic/what-tags/$WHAT_TAGS_VERSION/what-tags'
+    - 'wget --header "Authorization: Bearer $CI_JOB_TOKEN" https://gitlab.com/api/v4/projects/27631115/packages/generic/label-printer/$LABEL_PRINTER_VERSION/label-printer'
+    - chmod +x what-tags label-printer
+    - echo -e "\e[0Ksection_end:`date +%s`:fetch_tools\r\e[0K"
+
+    - echo -e "\e[0Ksection_start:`date +%s`:login[collapsed=true]\r\e[0KLog in to Docker and Gitlab registries"
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u $DOCKER_USER -p $DOCKER_PASS
+    - echo -e "\e[0Ksection_end:`date +%s`:login\r\e[0K"
+
+    # Calculated env vars, plus any precheck work
+    - echo -e "\e[0Ksection_start:`date +%s`:precheck\r\e[0KCheck and set up environment"
+    - |
+      if test -z "${CI_REGISTRY_IMAGE}"
+      then
+        echo 'WARNING! $CI_REGISTRY_IMAGE is not set! This usually means that the "Container registry" feature is not enabled.  To enable it, go to Settings > General > Visibility, project features, permissions > Container registry to ON and rerun this job.'
+        exit 1
+      fi
+    - echo -e "\e[0Ksection_end:`date +%s`:precheck\r\e[0K"
+
+    # EXTRA_DOCKER_BUILD_ARGS intentionally un-quoted, we want it to expand into actual args
+    - docker build $EXTRA_DOCKER_BUILD_ARGS --tag "${CI_PROJECT_NAME}:build" "${DOCKER_BUILD_CONTEXT}"
+    - ./label-printer $EXTRA_LABEL_PRINTER_ARGS --semver "${CI_COMMIT_TAG}" --prefix "com.stateless.${CI_PROJECT_NAME}" "${CI_PROJECT_NAME}:build"
+
+    # Produce a list of gitlab tags to apply
+    - echo -e "\e[0Ksection_start:`date +%s`:tagging[collapsed=true]\r\e[0KRetag built image"
+    - "> image_list"
+    # For Gitlab
+    - ./what-tags $EXTRA_WHAT_TAGS_ARGS --semver "${CI_COMMIT_TAG}" | xargs -I{} echo "${PUSH_DESTINATION}:{}" >> image_list
+    # For dockerhub
+    - ./what-tags $EXTRA_WHAT_TAGS_ARGS --semver "${CI_COMMIT_TAG}" | xargs -I{} echo "isopod/chasm:{}" >> image_list
+
+    # Apply all of those tags to the build tag
+    - xargs -I {} docker tag "${CI_PROJECT_NAME}:build" "{}" < image_list
+    - echo "Produced the following docker images:"; cat image_list
+    - echo -e "\e[0Ksection_end:`date +%s`:tagging\r\e[0K"
+
+    # Push all of those tags we just applied
+    - xargs -I {} docker push "{}" < image_list
+    - echo "Pushed the following docker images:"; cat image_list
+

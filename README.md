@@ -1,92 +1,376 @@
 # Chasm
 
+[![pipeline status](https://gitlab.com/isopod-cloud/chasm/badges/main/pipeline.svg)](https://gitlab.com/isopod-cloud/chasm/-/commits/main) [![tested with jest](https://img.shields.io/badge/tested_with-jest-99424f.svg?logo=jest)](https://github.com/facebook/jest)
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/stateless/isopod/chasm.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.com/stateless/isopod/chasm/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
+[IPsec]: https://en.wikipedia.org/wiki/IPsec
 
 ## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Chasms are what many businesses run into between different cloud provider’s APIs, tools, languages, internal networking skills, even visibility into what subnets you might have in each cloud environment. When all you really want is to be able to get your data from one place to another you need to cross the chasm.
+Chasm, a play on what we referred to internally as the "Cloud-Agnostic Subnet Mesher", is the first open source tool we’re publishing to help automate connectivity and solve some of the gaps we’ve found along the way.
+The process of creating [IPsec] tunnels between [virtual private clouds](https://en.wikipedia.org/wiki/Virtual_private_cloud) (VPCs) is different in each Cloud Service Provider (CSP), and it can be difficult to automate due to how IP addressing is handled (particularly for inter-cloud connectivity), eventual consistency in the standard CSPs APIs, and some dizzying circular dependencies to navigate through.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Enter Chasm, a tool for bridging the gaps between the clouds for you.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Core functions
+
+- Report all your VPCs and subnets from your CSPs.
+- Create a mesh [IPsec] network out of the cloud subnets you select from these CSPs.
+
+### Network designs supported
+
+- **Inter-cloud meshing**: meshing subnets between two or more distinct clouds i.e. AWS and GCP.
+- **Intra-cloud meshing**: meshing subnets within same CSP in different regions (under same account only).
+- **Mix of inter and intra-cloud Meshing**: meshing subnets between two or more distinct clouds, and more than one subnet within same CSP, where same CSP is under a single account.
+
+### Network designs not currently supported
+
+- **Multi-account cloud meshing**: we currently do not support situations where you have more than one account associated to a single CSP and want to mesh two or more subnets that are in different CSP accounts (i.e. if you have two AWS accounts with a subnet in account A, and a subnet in account B, these tools do not currently support connectivity between them).
+
+### Supported clouds
+
+- [Amazon Web Services (AWS)](https://aws.amazon.com/)
+- [Google Cloud Platform (GCP)](https://console.cloud.google.com/)
+- [Microsoft Azure Cloud Platform](https://azure.microsoft.com/)
+
+## Quick start
+
+This quickstart will walk you through the process of creating a simple Chasm-powered network: installation, defining the mesh network subnets, deploying the network, and then how to tear it down.
+
+### Docker
+
+This project uses [docker](https://www.docker.com/). The latest image should be downloaded with:
+
+```sh
+docker pull isopod/chasm:main
+```
+
+**Windows users should use docker from inside WSL. How to use [Docker Desktop in WSL](https://docs.docker.com/desktop/wsl/). How to [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)**
+
+_Don't have docker installed? Install Docker Desktop On [Mac](https://docs.docker.com/desktop/install/mac-install/), [Windows](https://docs.docker.com/desktop/install/windows-install/), or [Linux](https://docs.docker.com/desktop/install/linux-install/)._
+
+### Installing and configuring cloud CLIs
+
+Chasm uses the cloud credentials from the CLIs installed on the host machine to authenticate with the CSPs. Install the CLI for each CSP that you want involved in your meshed network, and authenticate that CLI so that it can work within your cloud environment.
+
+#### Azure
+
+1. Install by following the [Azure CLI install tutorial](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
+   - Windows users should [install for linux](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt) in their WSL distribution.
+2. Login with
+
+```sh
+az login
+```
+
+#### Google Cloud Platform
+
+1. Install by following the [gcloud CLI install tutorial](https://cloud.google.com/sdk/docs/install#linux)
+   - Windows users should install for linux in their WSL distribution.
+2. Login with
+
+```sh
+gcloud auth login
+```
+
+3. Create application default credentials
+
+```sh
+gcloud auth application-default login
+```
+
+#### AWS
+
+1. Install AWS CLI (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+2. Login with [short-term credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-short-term.html)
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+**Windows users MUST follow these steps from a WSL2 terminal in the distribution they run Docker from. [Link to install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)**
+
+Quick overview of what will be done in the quickstart (more in depth instruction in the following section):
+
+1. In `./mount/config.json`, define the Cloud Accounts that will be used to look up Subnets
+2. Run the `find` command to list all the subnets that can be meshed
+3. In `./mount/config.json`, edit the list of discovered subnets until it contains only the subnets you want to mesh
+4. Run the `mesh` command to mesh those subnets
+
+### Initializing a project directory
+
+First, make a project directory, a mount folder, and change directories into the project folder
+
+```sh
+mkdir -p chasm/mount/pulumi
+mkdir -p chasm/mount/stackWorkDir
+cd chasm
+```
+
+### Config file
+
+The config file determines:
+
+1. which clouds are scraped for subnets (from the "accounts" field)
+2. which subnets are meshed together (from the "subnets" field within the "VPCs" field for each "account")
+   - We do not need to specify "VPCs" in order to run the scrape functionality. It is only used for meshing.
+
+Copy the example config file into `./mount/config.json`.
+
+```sh
+cat << EOF > ./mount/config.json
+{
+    "accounts": [
+        {
+            "type": "AwsAccount",
+            "id": "arbitrary-unique-id-aws1",
+            "region": "YOUR_AWS_REGION"
+        },
+        {
+            "type": "GcpAccount",
+            "id": "arbitrary-unique-id-gcp1",
+            "project": "YOUR_GCP_PROJECT"
+        },
+        {
+            "type": "AzureAccount",
+            "id": "arbitrary-unique-id-az1",
+            "subscriptionId": "YOUR_AZURE_SUBSCRIPTION_ID"
+        }
+    ]
+}
+EOF
+```
+
+### Discovering all VPCs and subnets
+
+1. Modify `./mount/config.json` so that only the cloud accounts you want to scrape are in the "accounts" field
+
+2. Modify `./mount/config.json` so that:
+
+   - For AWS accounts
+     - Set the region field to a region from [this aws regions list](https://www.cloudregions.io/aws/regions)
+   - For GCP accounts
+     - Set the project field to a PROJECT_ID. You can list them by running:`gcloud projects list`
+   - For Azure accounts
+     - Set the subscriptionId field toA subscriptionId. You can list them by running `az account subscription list`
+
+3. Scrape all the subnets in the clouds you are logged into with (note this can take a few minutes):
+
+```sh
+docker run --rm -ti \
+    --volume "${PWD}/mount/:/app/mount" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.azure/:/root/.azure:rw"
+    --volume "${HOME}/.aws/:/root/.aws/:ro" \
+    isopod/chasm:main \
+    chasm find
+```
+
+_Note_: the az cli breaks without read write access to the credential directory.
+
+This will output a `json` description of all discovered VPCs and subnets to standard out, as well as to a file in `./mount/discovered.json`.
+
+_Volume mounts should only be specified for cloud CLIs you have installed on your system. For example, if you only have gcloud CLI installed, you would instead run:_
+
+```sh
+docker run --rm -ti \
+	--volume "${PWD}/mount/:/app/mount:rw" \
+	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+	isopod/chasm:main \
+	chasm find
+```
+
+### Meshing subnets
+
+1. Copy **_only_** the VPCs and subnets to be added to the mesh network from the output, into the VPCs section it's account in `config.json`. For example, a complete GCP account with VPCs would look like:
+
+```json
+{
+	"type": "GcpAccount",
+	"id": "arbitrary-unique-id",
+	"project": "get from 'gcloud projects list'",
+	"vpcs": [
+		{
+			"id": "xxxxxxxxxxxxxxxxxx",
+			"type": "GcpVpc",
+			"projectName": "myProject",
+			"networkName": "xxxxxxxxxxxxxxxxxx-vpc",
+			"subnets": [
+				{
+					"id": "xxxxxxxxxxxxxxxxxx",
+					"cidr": "xxx.xxx.xxx.xxx/xx",
+					"type": "GcpSubnet",
+					"region": "us-west4"
+				}
+			]
+		}
+	]
+}
+```
+
+[The pre-mesh config file](https://gitlab.com/isopod-cloud/chasm/-/blob/main/examples/config.pre-mesh-example.json) is a more complete example.
+
+#### Standing up a mesh network
+
+Create the mesh network with:
+
+_Be aware that this will create cloud resources which cost money. Make sure you preserve the `./mount/stackWorkDir`_ directory for when you want to tear down in the next step.\*
+
+```sh
+docker run --rm -ti \
+	--volume "${PWD}/mount/:/app/mount:rw" \
+	--volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
+	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+	--volume "${HOME}/.azure/:/root/.azure:rw" \
+	--volume "${HOME}/.aws/:/root/.aws/:ro" \
+	--env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
+	isopod/chasm:main \
+	chasm mesh -n "my-network" --url file:///app/mount/stack
+```
+
+When prompted, enter a pre shared key
+
+### Tearing down a mesh network
+
+Chasm also allows you to tear-down the network you created. This gives you the flexibility to automate bringing up and tearing down the network on demand.
+
+It is important to note that there may be some delay between when the CSPs in delete the network resources, and when the network fully come down. We recommend allowing about 5 minutes buffer time between when you need the network to be up and running if you plan to bring it up shortly after tearing it down.
+
+1. Destroy the mesh network with:
+
+```sh
+docker run --rm -ti \
+	--volume "${PWD}/mount/:/app/mount:rw" \
+	--volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
+	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+	--volume "${HOME}/.azure/:/root/.azure:rw" \
+	--volume "${HOME}/.aws/:/root/.aws/:ro" \
+	--env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
+	isopod/chasm:main \
+	chasm mesh -n "my-network" -D --url file:///app/mount/stack
+```
+
+<!-- NOTE: this section needs further work since it's not right yet.
+### Changing Mesh Working Directory
+
+If you wish to login to a different stack backend than the global pulumi default for your network data, you can use the `--url` option to change where we connect to, as long as that url exists already. Note that if using a locally managed filesystem for the url, you must set PULUMI_CONFIG_PASSPHRASE. One way to set PULUMI_CONFIG_PASSPHRASE is in your .env file (e.g., PULUMI_CONFIG_PASSPHRASE='gravy') and import it via `set -a && source .env && set +a`. Then you can use your custom url to /your_path/backend_dir via:
+
+```sh
+docker run --rm -ti \
+	--volume "${PWD}/mount/:/app/mount:rw" \
+	--volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
+	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+	--volume "${HOME}/.azure/:/root/.azure:rw" \
+	--volume "${HOME}/.aws/:/root/.aws/:ro" \
+	isopod/chasm:main \
+	chasm mesh --name test --workDir /your_path/work_dir --url file:///your_path/backend_dir
+```
+
+**IMPORTANT**: It is _STRONGLY_ recommended to set your working directory of your metadata (via `--workDir` as shown in the example above) when setting the url of the data you are using, since working directories are compatible with corresponding URLs, but not all working directory settings will be compatible with a different url (especially true for AWS S3 bucket URLs).
+-->
 
 ## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+
+- **Routing**: Currently the deployment will create a fully meshed IPsec tunnel between subnets selected. We will be adding routing between those subnets to automate traffic running across the IPsec tunnel network created. Right now, you'd have to go back and add that manually - something we're looking to update soon.
+- **Security groups** for the [IPsec] network for ease in adding security policies
+- **Cross-account Cloud Meshing**: We'd like to support meshing subnets within one cloud but across different accounts. This requires some work around how we authenticate, so it's not currently implemented.
+- **CI/CD**: This is particularly tricky in this space due to the security implications of automated testing for tools that operate on cloud resources, therefore we're temporarily handling this manually while we figure out a safe way to do it.
+
+## Support
+
+We are excited to hear your feedback and engagement. You can reach us by submitting issues, feedback, questions, and merge requests at [our Gitlab Issue tracker](https://gitlab.com/isopod-cloud/chasm/-/issues). We also encourage you to contact us at [security@isopod.cloud](mailto:security@isopod.cloud) in the event you identify any security-related bug, so we can look to address it quickly and in a manner that protects our community.
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Open source projects flourish with vigorous user contributions, and we'd love to have your additions to our project! In order to make it a good experience, we recommend that you read both the [Code of Conduct](docs/code-of-conduct.md) and our [contributing guide](CONTRIBUTING.md), then checkout the templates for an MR, which may assist you in successfully submitting your first Merge Request (MR) with us. Prospective code contributors might find the good first issue tag useful.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Visuals
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+![Multi-vpc example](docs/images/example-mesh.png)
+
+_3 VPCs connected together with IPsec VPN connections. The rightmost VPC has a highly available service in 2 distinct subnets._
+
+![azure example](docs/images/azure.png)
+
+_A data diagram showcasing the resources created in an Azure VPC to support connections to two distinct external VPCs._
+
+![gcp example](docs/images/gcp.png)
+
+_A data diagram showcasing the resources created in a GCP VPC to support connections to two distinct external VPCs._
+
+![aws example](docs/images/aws.png)
+
+_A data diagram showcasing the resources created in an AWS VPC to support connections to two distinct external VPCs._
+
+### Building from source
+
+This is only recommended for contributing developers.
+
+Clone this repository
+
+```sh
+git clone git@gitlab.com:isopod-cloud/chasm.git
+cd chasm
+```
+
+Install dependencies (this should be done whenever the dependencies change)
+
+```sh
+yarn install
+```
+
+Build the project (this should be done anytime the source code is changed)
+
+```sh
+yarn build
+```
+
+Run command line program
+
+```sh
+yarn start
+```
+
+Expected output:
+
+```text
+Usage: chasm <OPTION...>
+
+CLI for managing your cloud networks
+
+1. Install the cloud CLI
+2. Login to cloud CLI
+
+Commands:
+  find [options]  find all the subnets in the currently logged in accounts.
+  mesh [options]  meshes together all the subnets given in the config file.
+  help [command]  display help for command
+```
+
+Build the docker image with
+
+```sh
+yarn build && docker build . --tag chasm
+```
+
+### Testing
+
+You can run unit tests with:
+
+```sh
+yarn test
+```
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Copyright 2023 Stateless, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
