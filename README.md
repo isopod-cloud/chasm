@@ -1,6 +1,6 @@
 # Chasm
 
-[![pipeline status](https://gitlab.com/isopod-cloud/chasm/badges/main/pipeline.svg)](https://gitlab.com/isopod-cloud/chasm/-/commits/main) [![tested with jest](https://img.shields.io/badge/tested_with-jest-99424f.svg?logo=jest)](https://github.com/facebook/jest)
+[![tested with jest](https://img.shields.io/badge/tested_with-jest-99424f.svg?logo=jest)](https://github.com/facebook/jest)
 
 [IPsec]: https://en.wikipedia.org/wiki/IPsec
 
