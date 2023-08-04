@@ -226,7 +226,7 @@ docker run --rm -ti \
 	chasm mesh -n "my-network" --url file:///app/mount/stack
 ```
 
-When prompted, enter a pre shared key
+When prompted, enter a pre shared key (PSK). It should be atleast 8 characters. PSKs used during the IKEv2 (Internet Key Exchange) to secure traffic between the two peers while they work on generating random keys to use to talk to each other. [More about pre shared keys here](https://en.wikipedia.org/wiki/Pre-shared_key)
 
 ### Tearing down a mesh network
 
