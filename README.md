@@ -1,13 +1,14 @@
 # Chasm
 
+[![Docker Pulls](https://badgen.net/docker/pulls/trueosiris/godaddypy?icon=docker&label=pulls)](https://hub.docker.com/r/isopod/chasm/)
 [![tested with jest](https://img.shields.io/badge/tested_with-jest-99424f.svg?logo=jest)](https://github.com/facebook/jest)
 
 [IPsec]: https://en.wikipedia.org/wiki/IPsec
 
 ## Description
 
-Chasms are what many businesses run into between different cloud provider’s APIs, tools, languages, internal networking skills, even visibility into what subnets you might have in each cloud environment. When all you really want is to be able to get your data from one place to another you need to cross the chasm.
-Chasm, a play on what we referred to internally as the "Cloud-Agnostic Subnet Mesher", is the first open source tool we’re publishing to help automate connectivity and solve some of the gaps we’ve found along the way.
+Chasms are what many businesses run into when trying to find the skill-sets and knowledge to navigate between the different cloud provider's environments.  This can include APIs, tools, languages, networking architectures, and even having visibility into what subnets you might have in each cloud environment.  When what you really want is to be able to get your data from one place to the another that you need... crossing that chasm.
+
 The process of creating [IPsec] tunnels between [virtual private clouds](https://en.wikipedia.org/wiki/Virtual_private_cloud) (VPCs) is different in each Cloud Service Provider (CSP), and it can be difficult to automate due to how IP addressing is handled (particularly for inter-cloud connectivity), eventual consistency in the standard CSPs APIs, and some dizzying circular dependencies to navigate through.
 
 Enter Chasm, a tool for bridging the gaps between the clouds for you.
@@ -45,9 +46,35 @@ This project uses [docker](https://www.docker.com/). The latest image should be 
 docker pull isopod/chasm:main
 ```
 
-**Windows users should use docker from inside WSL. How to use [Docker Desktop in WSL](https://docs.docker.com/desktop/wsl/). How to [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)**
-
 _Don't have docker installed? Install Docker Desktop On [Mac](https://docs.docker.com/desktop/install/mac-install/), [Windows](https://docs.docker.com/desktop/install/windows-install/), or [Linux](https://docs.docker.com/desktop/install/linux-install/)._
+
+### Windows users only - WSL docker quickstart
+
+**Windows users should use docker from inside WSL. Follow these quick steps if you use windows.**
+
+1. install a distro:
+
+    ```sh
+    wsl --install -d Ubuntu
+    ```
+
+2. Ensure the WSL version is 2
+
+    ```sh
+    wsl --set-version 2 Ubuntu
+    ```
+
+3. Set to default disto
+
+    ```sh
+    wsl --set-default Ubuntu
+    ```
+
+4. In Docker Desktop, go to Resources, WSL Integration and make sure the checkbox for Enable Integration with my default WSL distro is checked.
+
+5. Open an Ubuntu WSL prompt (Windows Key+R, then enter WSL, then click Run). Do everything from here like you're on Linux.
+
+More resources if you get stuck: How to use [Docker Desktop in WSL](https://docs.docker.com/desktop/wsl/), How to [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
 
 ### Installing and configuring cloud CLIs
 
@@ -59,29 +86,31 @@ Chasm uses the cloud credentials from the CLIs installed on the host machine to 
    - Windows users should [install for linux](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt) in their WSL distribution.
 2. Login with
 
-```sh
-az login
-```
+    ```sh
+    az login
+    ```
 
 #### Google Cloud Platform
 
 1. Install by following the [gcloud CLI install tutorial](https://cloud.google.com/sdk/docs/install#linux)
-   - Windows users should install for linux in their WSL distribution.
+    - *Windows users should install for their linux distro in WSL.*
 2. Login with
 
-```sh
-gcloud auth login
-```
+    ```sh
+    gcloud auth login
+    ```
 
 3. Create application default credentials
 
-```sh
-gcloud auth application-default login
-```
+    ```sh
+    gcloud auth application-default login
+    ```
 
 #### AWS
 
-1. Install AWS CLI (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+1. Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+    - *Windows users should install for their linux distro in WSL.*
+
 2. Login with [short-term credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-short-term.html)
     - Chasm uses default credentials, meaning your `~/.aws/credentials` file should have you credentials under [default], like so:
 
@@ -117,9 +146,9 @@ cd chasm
 
 The config file determines:
 
-1. which clouds are scraped for subnets (from the "accounts" field)
-2. which subnets are meshed together (from the "subnets" field within the "VPCs" field for each "account")
-   - We do not need to specify "VPCs" in order to run the scrape functionality. It is only used for meshing.
+1. Which clouds are scraped for subnets (from the "accounts" field)
+2. Which subnets are meshed together (from the "subnets" field within the "VPCs" field for each "account")
+    - We do not need to specify "VPCs" in order to run the scrape functionality. It is only used for meshing.
 
 Copy the example config file into `./mount/config.json`.
 
@@ -164,8 +193,8 @@ EOF
 
 ```sh
 docker run --rm -ti \
-    --volume "${PWD}/mount/:/app/mount" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${PWD}/mount/:/app/mount:rw" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     isopod/chasm:main \
@@ -181,7 +210,7 @@ _Volume mounts should only be specified for cloud CLIs you have installed on you
 ```sh
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     isopod/chasm:main \
     chasm find
 ```
@@ -226,7 +255,7 @@ _Be aware that this will create cloud resources which cost money. Make sure you 
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
     --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     --env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
@@ -248,7 +277,7 @@ It is important to note that there may be some delay between when the CSPs in de
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
     --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     --env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
@@ -265,7 +294,7 @@ If you wish to login to a different stack backend than the global pulumi default
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount:rw" \
     --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:rw" \
     --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     isopod/chasm:main \
@@ -367,18 +396,6 @@ You can run unit tests with:
 yarn test
 ```
 
-## License
+## Licensing
 
-Copyright 2023 Stateless, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+See the [LICENSE.txt](LICENSE.txt) file for licensing information as it pertains to files in this repository.
