@@ -158,7 +158,7 @@ EOF
 docker run --rm -ti \
     --volume "${PWD}/mount/:/app/mount" \
     --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
-    --volume "${HOME}/.azure/:/root/.azure:rw"
+    --volume "${HOME}/.azure/:/root/.azure:rw" \
     --volume "${HOME}/.aws/:/root/.aws/:ro" \
     isopod/chasm:main \
     chasm find
