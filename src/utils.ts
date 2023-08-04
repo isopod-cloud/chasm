@@ -130,7 +130,7 @@ export function prepareWorkspaceOptions(
 }
 
 export function getPulumiOutputStream(args: ToSynthesize): fs.WriteStream {
-	return fs.createWriteStream(args.pulumiLogFile, { flags: "a" });
+	return fs.createWriteStream(args.pulumiLogFile);
 }
 
 export function logEngineEvent(
