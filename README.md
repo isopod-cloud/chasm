@@ -83,6 +83,14 @@ gcloud auth application-default login
 
 1. Install AWS CLI (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 2. Login with [short-term credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-short-term.html)
+    - Chasm uses default credentials, meaning your `~/.aws/credentials` file should have you credentials under [default]
+
+        ```sh
+        [default]
+        aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+        aws_secret_access_key = afasefjwqg/K7MDENG/bPxRfiCYEXAMPLEKEY
+        aws_session_token = IQoJb3JpZ2luX2IQoJb3JpZ2luX2IQoJb3JpZ2luX2IQoJb3JpZ2luX2IQoJb3JpZVERYLONGSTRINGEXAMPLE
+        ```
 
 ## Usage
 
@@ -172,10 +180,10 @@ _Volume mounts should only be specified for cloud CLIs you have installed on you
 
 ```sh
 docker run --rm -ti \
-	--volume "${PWD}/mount/:/app/mount:rw" \
-	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
-	isopod/chasm:main \
-	chasm find
+    --volume "${PWD}/mount/:/app/mount:rw" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    isopod/chasm:main \
+    chasm find
 ```
 
 ### Meshing subnets
@@ -184,25 +192,25 @@ docker run --rm -ti \
 
 ```json
 {
-	"type": "GcpAccount",
-	"id": "arbitrary-unique-id",
-	"project": "get from 'gcloud projects list'",
-	"vpcs": [
-		{
-			"id": "xxxxxxxxxxxxxxxxxx",
-			"type": "GcpVpc",
-			"projectName": "myProject",
-			"networkName": "xxxxxxxxxxxxxxxxxx-vpc",
-			"subnets": [
-				{
-					"id": "xxxxxxxxxxxxxxxxxx",
-					"cidr": "xxx.xxx.xxx.xxx/xx",
-					"type": "GcpSubnet",
-					"region": "us-west4"
-				}
-			]
-		}
-	]
+    "type": "GcpAccount",
+    "id": "arbitrary-unique-id",
+    "project": "get from 'gcloud projects list'",
+    "vpcs": [
+        {
+            "id": "xxxxxxxxxxxxxxxxxx",
+            "type": "GcpVpc",
+            "projectName": "myProject",
+            "networkName": "xxxxxxxxxxxxxxxxxx-vpc",
+            "subnets": [
+                {
+                    "id": "xxxxxxxxxxxxxxxxxx",
+                    "cidr": "xxx.xxx.xxx.xxx/xx",
+                    "type": "GcpSubnet",
+                    "region": "us-west4"
+                }
+            ]
+        }
+    ]
 }
 ```
 
@@ -216,14 +224,14 @@ _Be aware that this will create cloud resources which cost money. Make sure you 
 
 ```sh
 docker run --rm -ti \
-	--volume "${PWD}/mount/:/app/mount:rw" \
-	--volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
-	--volume "${HOME}/.azure/:/root/.azure:rw" \
-	--volume "${HOME}/.aws/:/root/.aws/:ro" \
-	--env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
-	isopod/chasm:main \
-	chasm mesh -n "my-network" --url file:///app/mount/stack
+    --volume "${PWD}/mount/:/app/mount:rw" \
+    --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.azure/:/root/.azure:rw" \
+    --volume "${HOME}/.aws/:/root/.aws/:ro" \
+    --env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
+    isopod/chasm:main \
+    chasm mesh -n "my-network" --url file:///app/mount/stack
 ```
 
 When prompted, enter a pre shared key
@@ -238,14 +246,14 @@ It is important to note that there may be some delay between when the CSPs in de
 
 ```sh
 docker run --rm -ti \
-	--volume "${PWD}/mount/:/app/mount:rw" \
-	--volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
-	--volume "${HOME}/.azure/:/root/.azure:rw" \
-	--volume "${HOME}/.aws/:/root/.aws/:ro" \
-	--env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
-	isopod/chasm:main \
-	chasm mesh -n "my-network" -D --url file:///app/mount/stack
+    --volume "${PWD}/mount/:/app/mount:rw" \
+    --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.azure/:/root/.azure:rw" \
+    --volume "${HOME}/.aws/:/root/.aws/:ro" \
+    --env PULUMI_CONFIG_PASSPHRASE="arbitrary-passphrase" \
+    isopod/chasm:main \
+    chasm mesh -n "my-network" -D --url file:///app/mount/stack
 ```
 
 <!-- NOTE: this section needs further work since it's not right yet.
@@ -255,13 +263,13 @@ If you wish to login to a different stack backend than the global pulumi default
 
 ```sh
 docker run --rm -ti \
-	--volume "${PWD}/mount/:/app/mount:rw" \
-	--volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
-	--volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
-	--volume "${HOME}/.azure/:/root/.azure:rw" \
-	--volume "${HOME}/.aws/:/root/.aws/:ro" \
-	isopod/chasm:main \
-	chasm mesh --name test --workDir /your_path/work_dir --url file:///your_path/backend_dir
+    --volume "${PWD}/mount/:/app/mount:rw" \
+    --volume "${PWD}/mount/pulumi:/root/.pulumi:rw" \
+    --volume "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+    --volume "${HOME}/.azure/:/root/.azure:rw" \
+    --volume "${HOME}/.aws/:/root/.aws/:ro" \
+    isopod/chasm:main \
+    chasm mesh --name test --workDir /your_path/work_dir --url file:///your_path/backend_dir
 ```
 
 **IMPORTANT**: It is _STRONGLY_ recommended to set your working directory of your metadata (via `--workDir` as shown in the example above) when setting the url of the data you are using, since working directories are compatible with corresponding URLs, but not all working directory settings will be compatible with a different url (especially true for AWS S3 bucket URLs).
