@@ -10,6 +10,9 @@ import { ToSynthesize } from "./config";
 export const isPresent = <T>(v: T): v is Exclude<T, null | undefined> =>
 	v !== undefined && v !== null;
 
+export const sleep = (ms: number) =>
+	new Promise((resolve) => setTimeout(resolve, ms));
+
 export const timeIt = async <T>(
 	func: () => Promise<T>,
 	name: string,
