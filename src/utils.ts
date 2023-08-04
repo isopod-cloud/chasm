@@ -1,4 +1,3 @@
-import { pino } from "pino";
 import { ReadonlyDeep } from "type-fest";
 import { homedir } from "os";
 import * as path from "path";
@@ -18,7 +17,7 @@ export const timeIt = async <T>(
 	const start = new Date().getTime();
 	const res = await func();
 	const end = new Date().getTime();
-	pino().info(`Took ${end - start}ms to call ${name}`);
+	console.info(`Took ${end - start}ms to call ${name}`);
 	return res;
 };
 
@@ -128,4 +127,16 @@ export function prepareWorkspaceOptions(
 	}
 
 	return options;
+}
+
+export function getPulumiOutputStream(args: ToSynthesize): fs.WriteStream {
+	return fs.createWriteStream(args.pulumiLogFile, { flags: "a" });
+}
+
+export function logEngineEvent(
+	stream: fs.WriteStream,
+	event: pulumi.automation.EngineEvent,
+) {
+	stream.write(JSON.stringify(event));
+	stream.write("\n");
 }

@@ -16,7 +16,12 @@ import {
 
 import { ToSynthesize } from "../config";
 
-import { prepareWorkspaceOptions } from "../utils";
+import {
+	getPulumiOutputStream,
+	isPresent,
+	logEngineEvent,
+	prepareWorkspaceOptions,
+} from "../utils";
 
 // Normally I don't love singleton classes like this but I think the alternative is worse.
 // TODO: this class isn't really serving the purpose I thought it would.  I think we need to rethink its use.
@@ -536,31 +541,45 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 		};
 
 	const config = args.accounts;
+	const stream = getPulumiOutputStream(args);
 
-	const meshResult = await meshStack.up({
-		onOutput: process.stdout.write.bind(process.stdout),
-		color: "auto",
-		program: planMesh(args, config),
-	});
+	try {
+		const meshResult = await meshStack.up({
+			onOutput: process.stdout.write.bind(process.stdout),
+			onEvent: (event) => {
+				logEngineEvent(stream, event);
+			},
+			color: "auto",
+			program: planMesh(args, config),
+		});
 
-	const meshResultOuts = meshResult.outputs as MapToOutputs<
-		ReturnType<typeof planMesh>
-	>;
-	const pass1Targeter = {} as Record<string, IpV4Address | undefined>;
-	for (const [_, lookup] of Object.entries(meshResultOuts)) {
-		pass1Targeter[lookup.value[0]] = lookup.value[1];
+		const meshResultOuts = meshResult.outputs as MapToOutputs<
+			ReturnType<typeof planMesh>
+		>;
+		const pass1Targeter = {} as Record<string, IpV4Address | undefined>;
+		for (const [_, lookup] of Object.entries(meshResultOuts)) {
+			pass1Targeter[lookup.value[0]] = lookup.value[1];
+		}
+
+		const meshRefreshResult2 = await meshStack.refresh({
+			onOutput: process.stdout.write.bind(process.stdout),
+			onEvent: (event) => {
+				logEngineEvent(stream, event);
+			},
+			color: "auto",
+		});
+
+		const meshResult2 = await meshStack.up({
+			onOutput: process.stdout.write.bind(process.stdout),
+			onEvent: (event) => {
+				logEngineEvent(stream, event);
+			},
+			color: "auto",
+			program: planMesh(args, config, pass1Targeter),
+		});
+	} finally {
+		stream.end();
 	}
-
-	const meshRefreshResult2 = await meshStack.refresh({
-		onOutput: process.stdout.write.bind(process.stdout),
-		color: "auto",
-	});
-
-	const meshResult2 = await meshStack.up({
-		onOutput: process.stdout.write.bind(process.stdout),
-		color: "auto",
-		program: planMesh(args, config, pass1Targeter),
-	});
 };
 
 export const deProvisionNetwork = async (args: ToSynthesize) => {

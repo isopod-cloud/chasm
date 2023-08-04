@@ -1,4 +1,3 @@
-import pino from "pino";
 import {
 	Configuration,
 	FromConfigFile,
@@ -16,10 +15,9 @@ import { getSubnets } from "./discovery";
 import * as readline from "readline";
 import { deProvisionNetwork, provisionNetwork } from "./executor/fixture";
 import { Config } from "./types/new-types";
+import * as path from "path";
 
 async function main(config: Configuration) {
-	const log = pino({ level: config.LOG_LEVEL ?? "info" });
-
 	const program = new Command();
 
 	const packageJson = await readFromPackageFile("./package.json");
@@ -45,7 +43,9 @@ async function main(config: Configuration) {
 			writeFileSync(options.outputFile, JSON.stringify(discovered, null, 2), {
 				flag: "w",
 			});
-			log.info({ "discovered-subnets": JSON.stringify(discovered, null, 2) });
+			console.info({
+				"discovered-subnets": JSON.stringify(discovered, null, 2),
+			});
 		});
 	const meshCmd = new Command("mesh")
 		.command("mesh")
@@ -77,6 +77,10 @@ async function main(config: Configuration) {
 			"path to the working directory used for setting up the network",
 			"./mount/mesh-workdir",
 		)
+		.option(
+			"-F, --pulumiLogFile <pulumi-log-file>",
+			'output file for any pulumi logs resulting from meshing (default: "<path>/pulumi-logs.out" where <path> was specified by --workDir)',
+		)
 		.action(async (options) => {
 			if (isPresent(options.name) && isPresent(options.config)) {
 				const fromConfigFile = await readFromConfigFile(options.config);
@@ -85,6 +89,9 @@ async function main(config: Configuration) {
 					? options.projectName
 					: meshName;
 				const workDir = options.workDir;
+				const pulumiLogFile = isPresent(options.pulumiLogFile)
+					? options.pulumiLogFile
+					: path.join(workDir, "pulumi-logs.out");
 				const inputStream = readline.createInterface({
 					input: process.stdin,
 					output: process.stdout,
@@ -108,6 +115,7 @@ async function main(config: Configuration) {
 					psk,
 					projectName,
 					workDir,
+					pulumiLogFile,
 				});
 
 				if (isPresent(options.url)) {
@@ -117,7 +125,7 @@ async function main(config: Configuration) {
 				console.debug({ "synthesize-params": toSynthesize });
 
 				if (options.preview) {
-					log.info("Previewing mesh");
+					console.info("Previewing mesh");
 					// TODO: restore preview functionality
 					// return await previewNetwork(toSynthesize, log);
 					throw new Error(
@@ -125,10 +133,10 @@ async function main(config: Configuration) {
 					);
 				}
 				if (options.deprovision) {
-					log.info("Deprovisioning mesh");
+					console.info("Deprovisioning mesh");
 					return await deProvisionNetwork(toSynthesize);
 				}
-				log.info("Provisioning mesh");
+				console.info("Provisioning mesh");
 				return await provisionNetwork(toSynthesize);
 			}
 		});
