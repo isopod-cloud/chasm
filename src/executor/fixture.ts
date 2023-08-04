@@ -593,8 +593,16 @@ export const deProvisionNetwork = async (args: ToSynthesize) => {
 		options,
 	);
 
-	await meshStack.destroy({
-		onOutput: process.stdout.write.bind(process.stdout),
-		color: "auto",
-	});
+	const stream = getPulumiOutputStream(args);
+	try {
+		await meshStack.destroy({
+			onOutput: process.stdout.write.bind(process.stdout),
+			onEvent: (event) => {
+				logEngineEvent(stream, event);
+			},
+			color: "auto",
+		});
+	} finally {
+		stream.end();
+	}
 };
