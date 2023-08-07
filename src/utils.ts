@@ -2,6 +2,7 @@ import { ReadonlyDeep } from "type-fest";
 import { homedir } from "os";
 import * as path from "path";
 import * as fs from "fs";
+import * as ipa from "ip-address";
 
 import * as pulumi from "@pulumi/pulumi";
 import { ToSynthesize } from "./config";
@@ -130,6 +131,19 @@ export function prepareWorkspaceOptions(
 	}
 
 	return options;
+}
+
+export function overlappingCidrsExist(cidrs: string[]): boolean {
+	for (const [index, cidr] of cidrs.entries()) {
+		const cidr1ip = new ipa.Address4(cidr);
+		for (const [_index2, cidr2] of cidrs.slice(index + 1).entries()) {
+			const cidr2ip = new ipa.Address4(cidr2);
+			if (cidr1ip.isInSubnet(cidr2ip) || cidr2ip.isInSubnet(cidr1ip)) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 export function getPulumiOutputStream(args: ToSynthesize): fs.WriteStream {
