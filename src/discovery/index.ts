@@ -20,6 +20,10 @@ export async function getSubnets(
 				account.vpcs = await GCP.getVpcs(account);
 				break;
 			}
+			default: {
+				void (account satisfies never) // Using account.type gives error?
+				return Promise.reject(new TypeError("Unsupported input type"));
+			}
 		}
 	}
 	return accounts;

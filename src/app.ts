@@ -1,11 +1,17 @@
-import { FromConfigFile, FromPackageFile, ToSynthesize } from "./config";
+import {
+	Configuration,
+	ToSynthesize,
+} from "./config";
 import { Command } from "@commander-js/extra-typings";
 // Sam: this is it:      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Gotta use the specific extra-typings import
-import * as fs from "fs/promises";
 import { writeFileSync } from "fs";
 import { config as loadEnv } from "dotenv";
-import { isPresent } from "./utils";
+import {
+	isPresent,
+	readFromConfigFile,
+	readFromPackageFile,
+} from "./utils";
 import { getSubnets } from "./discovery";
 import * as readline from "readline";
 import { deProvisionNetwork, provisionNetwork } from "./executor/fixture";
@@ -147,13 +153,7 @@ async function main() {
 }
 
 if (require.main === module) {
-	void main();
-}
-
-async function readFromPackageFile(filePath: string): Promise<FromPackageFile> {
-	return FromPackageFile.parse(JSON.parse(await fs.readFile(filePath, "utf8")));
-}
-
-async function readFromConfigFile(filePath: string): Promise<FromConfigFile> {
-	return FromConfigFile.parse(JSON.parse(await fs.readFile(filePath, "utf8")));
+	loadEnv();
+	const config = Configuration.parse(process.env);
+	void main(config);
 }
