@@ -12,6 +12,7 @@ import {
 	ToSynthesize
 } from "./config";
 import { CloudAccount} from "./types/new-types"
+
 // Useful for filters
 export const isPresent = <T>(v: T): v is Exclude<T, null | undefined> =>
 	v !== undefined && v !== null;
@@ -186,4 +187,3 @@ export async function readFromPackageFile(filePath: string): Promise<FromPackage
 export async function readFromConfigFile(filePath: string): Promise<FromConfigFile> {
 	return FromConfigFile.parse(JSON.parse(await fsPromise.readFile(filePath, "utf8")));
 }
-
