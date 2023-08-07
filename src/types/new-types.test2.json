@@ -3,17 +3,17 @@
     {
       "type": "ProtoAwsVpc",
       "cidr": "10.0.0.0/20",
-      "name": "hinder-drat-greedily",
+      "name": "mess-level-briefly",
       "region": "us-east-1",
       "subnets": [
         {
           "type": "ProtoAwsSubnet",
-          "name": "afterwards-upon-whose",
+          "name": "versus-soupy-yippee",
           "cidr": "10.0.0.0/26"
         },
         {
           "type": "ProtoAwsSubnet",
-          "name": "brush-hive-rap",
+          "name": "off-even-oh",
           "cidr": "10.0.0.64/26"
         }
       ]
@@ -21,17 +21,17 @@
     {
       "type": "ProtoAwsVpc",
       "cidr": "10.0.16.0/20",
-      "name": "absent-yowza-skip",
+      "name": "now-heavily-overhaul",
       "region": "us-east-1",
       "subnets": [
         {
           "type": "ProtoAwsSubnet",
-          "name": "than-and-to",
+          "name": "rapidly-the-miserable",
           "cidr": "10.0.16.0/26"
         },
         {
           "type": "ProtoAwsSubnet",
-          "name": "seldom-so-stock",
+          "name": "ha-diligently-well",
           "cidr": "10.0.16.64/26"
         }
       ]
@@ -39,17 +39,17 @@
     {
       "type": "ProtoAwsVpc",
       "cidr": "10.0.32.0/20",
-      "name": "scary-to-round",
+      "name": "wobbly-harm-sadly",
       "region": "us-east-1",
       "subnets": [
         {
           "type": "ProtoAwsSubnet",
-          "name": "internal-brr-mid",
+          "name": "after-duh-calendar",
           "cidr": "10.0.32.0/26"
         },
         {
           "type": "ProtoAwsSubnet",
-          "name": "oof-now-hmph",
+          "name": "sugary-smash-duh",
           "cidr": "10.0.32.64/26"
         }
       ]
@@ -57,17 +57,17 @@
     {
       "type": "ProtoAwsVpc",
       "cidr": "10.0.48.0/20",
-      "name": "um-amidst-produce",
+      "name": "duh-husk-until",
       "region": "us-east-1",
       "subnets": [
         {
           "type": "ProtoAwsSubnet",
-          "name": "following-unfit-too",
+          "name": "zowie-anti-jicama",
           "cidr": "10.0.48.0/26"
         },
         {
           "type": "ProtoAwsSubnet",
-          "name": "sweltering-lest-of",
+          "name": "fritter-aha-oblige",
           "cidr": "10.0.48.64/26"
         }
       ]
@@ -75,17 +75,17 @@
     {
       "type": "ProtoAwsVpc",
       "cidr": "10.0.64.0/20",
-      "name": "of-after-although",
+      "name": "of-boohoo-ah",
       "region": "us-east-1",
       "subnets": [
         {
           "type": "ProtoAwsSubnet",
-          "name": "until-bah-gurgle",
+          "name": "spring-ideology-lender",
           "cidr": "10.0.64.0/26"
         },
         {
           "type": "ProtoAwsSubnet",
-          "name": "before-bicycle-mostly",
+          "name": "worst-comptroller-on",
           "cidr": "10.0.64.64/26"
         }
       ]
@@ -94,58 +94,58 @@
   "azure": [
     {
       "type": "ProtoAzureVpc",
-      "resourceGroupName": "unfit-speedily-blah",
-      "name": "once-atomise-complaint",
+      "resourceGroupName": "divide-yum-carelessly",
+      "name": "versus-proctor-doubt",
       "cidr": "10.0.0.0/20",
       "region": "eastus2",
       "subnets": [
         {
           "type": "ProtoAzureSubnet",
-          "name": "ack-hence-untried",
+          "name": "speedy-ha-inside",
           "cidr": "10.0.0.0/26"
         },
         {
           "type": "ProtoAzureSubnet",
-          "name": "mid-baggy-well-worn",
+          "name": "what-silver-proximal",
           "cidr": "10.0.0.64/26"
         },
         {
           "type": "ProtoAzureSubnet",
-          "name": "fooey-bower-vice",
+          "name": "ornery-bunt-enormously",
           "cidr": "10.0.0.128/26"
         },
         {
           "type": "ProtoAzureSubnet",
-          "name": "goose-gee-corps",
+          "name": "how-youth-fully",
           "cidr": "10.0.0.192/26"
         }
       ]
     },
     {
       "type": "ProtoAzureVpc",
-      "resourceGroupName": "unfit-speedily-blah",
-      "name": "failing-thorny-virtual",
+      "resourceGroupName": "divide-yum-carelessly",
+      "name": "unless-bonsai-amongst",
       "cidr": "10.0.16.0/20",
       "region": "eastus2",
       "subnets": [
         {
           "type": "ProtoAzureSubnet",
-          "name": "eek-hence-nor",
+          "name": "valiantly-cruise-ew",
           "cidr": "10.0.16.0/26"
         },
         {
           "type": "ProtoAzureSubnet",
-          "name": "crossly-as-unsaddle",
+          "name": "gadzooks-amid-uncurl",
           "cidr": "10.0.16.64/26"
         },
         {
           "type": "ProtoAzureSubnet",
-          "name": "highly-queasily-that",
+          "name": "thoroughly-append-bah",
           "cidr": "10.0.16.128/26"
         },
         {
           "type": "ProtoAzureSubnet",
-          "name": "able-foolish-next",
+          "name": "mortified-roughly-geez",
           "cidr": "10.0.16.192/26"
         }
       ]
@@ -155,31 +155,31 @@
     {
       "type": "ProtoGcpVpc",
       "cidr": "10.0.0.0/20",
-      "name": "mesh-boohoo-drawl",
+      "name": "yahoo-given-urgently",
       "projectName": "test-project",
       "subnets": [
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "yet-regular-quirkily",
+          "name": "spring-active-robotics",
           "cidr": "10.0.0.0/26"
         },
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "boohoo-nor-neglected",
+          "name": "faithfully-once-of",
           "cidr": "10.0.0.64/26"
         },
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "unlike-oof-psst",
+          "name": "youthfully-train-why",
           "cidr": "10.0.0.128/26"
         },
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "how-dependable-aw",
+          "name": "confront-yet-mmm",
           "cidr": "10.0.0.192/26"
         }
       ]
@@ -187,31 +187,31 @@
     {
       "type": "ProtoGcpVpc",
       "cidr": "10.0.16.0/20",
-      "name": "couch-boohoo-overdue",
+      "name": "above-seriously-ack",
       "projectName": "test-project",
       "subnets": [
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "gong-standard-abase",
+          "name": "phew-apropos-graffiti",
           "cidr": "10.0.16.0/26"
         },
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "sniveling-indeed-die",
+          "name": "rivet-angrily-thankful",
           "cidr": "10.0.16.64/26"
         },
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "from-instead-colossal",
+          "name": "prisoner-these-chapter",
           "cidr": "10.0.16.128/26"
         },
         {
           "type": "ProtoGcpSubnet",
           "region": "us-east1",
-          "name": "boy-yahoo-rye",
+          "name": "twig-whoever-acidly",
           "cidr": "10.0.16.192/26"
         }
       ]

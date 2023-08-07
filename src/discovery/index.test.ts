@@ -12,7 +12,7 @@ describe("discovery agent tests", () => {
         for(const result of results) {
             expect(result.vpcs).toBeDefined();
         }
-	});
+	}, 300000); // Large timeout cause GCP can be very, very slow
     it("should fail if unsupported cloud credentials are provided", async () => {
         // TODO: this will likely need to change when we sort out long-term credentials plan (i.e. to support multiple)
         const badAccounts =

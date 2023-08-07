@@ -7,7 +7,8 @@ import crypto from "crypto";
 import { z } from "zod";
 import { project } from "@pulumi/gcp/config";
 
-
+// GCP is apparently very, very slow
+const timeOut = 300000 // Timeout for try until done is 300seconds, so this is converted to ms
 // GCP Helper functions, likely gonna be replaced by some sort of fixturizer
 const insertResponseSchema = z.object({
 	latestResponse: z.object({
@@ -116,23 +117,19 @@ async function destroyGcpTestFixturesDA(
 		requestId: subReqIdDelete,
 	};
 
-	const s = await tryUntilDone(
+	const _s = await tryUntilDone(
 		subnetClient.delete.bind(subnetClient),
 		subnetInput,
 		300,
-	).then((res) => {
-		console.log(res);
+	).then((_res) => {
 	});
-	console.log(s);
 
-	const n = await tryUntilDone(
+	const _n = await tryUntilDone(
 		netClient.delete.bind(netClient),
 		netInput,
 		300,
-	).then((res) => {
-		console.log(res);
+	).then((_res) => {
 	});
-	console.log(n);
 };
 
 describe("discovery agent tests for gcp", () => {
@@ -145,14 +142,14 @@ describe("discovery agent tests for gcp", () => {
 			netClient,
 			gcpAccount
 		);
-	});
+	}, timeOut);
 	afterAll(async () => {
 		await destroyGcpTestFixturesDA(
 			subnetClient,
 			netClient,
 			gcpAccount,
 		);
-	});
+	}, timeOut);
 	it("should get test subnets from gcp account(s)", async () => {
 		const result: GcpVpc[] = await getVpcs(gcpAccount);
 
@@ -188,5 +185,5 @@ describe("discovery agent tests for gcp", () => {
 			]),
 		);
 		expect(testSubnets).toHaveLength(1);
-	});
+	}, timeOut);
 });
