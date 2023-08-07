@@ -3,7 +3,6 @@ import {
 	AwsVpc,
 	AwsSubnet,
 	AwsAccount,
-	CloudAccount,
 } from "../types/new-types";
 import { getAccountConfigForTest } from "../utils";
 import {

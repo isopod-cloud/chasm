@@ -5,7 +5,6 @@ import { NetworksClient, SubnetworksClient } from "@google-cloud/compute";
 import { sleep } from "../utils";
 import crypto from "crypto";
 import { z } from "zod";
-import { project } from "@pulumi/gcp/config";
 
 // GCP is apparently very, very slow
 const timeOut = 300000 // Timeout for try until done is 300seconds, so this is converted to ms
