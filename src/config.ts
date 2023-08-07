@@ -25,6 +25,7 @@ export const ToSynthesize = z.object({
 	psk: z.string(),
 	projectName: z.string(),
 	workDir: z.string(),
+	pulumiLogFile: z.string(),
 	url: z.string().optional(),
 });
 
