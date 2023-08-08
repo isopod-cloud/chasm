@@ -2,13 +2,14 @@ import {
 	lock,
 	getPulumiOutputStream,
 	logEngineEvent,
-	sleep,
-	isPresent,
+	swapTildeWithHome,
+	prepareWorkspaceOptions,
 } from "./utils";
 import * as path from "path";
 import * as fs from "fs";
 import { ToSynthesize } from "./config";
 import * as pulumi from "@pulumi/pulumi";
+import { homedir } from "os";
 
 describe("deepFreeze", () => {
 	it("should freeze a simple object", () => {
@@ -54,9 +55,17 @@ describe("deepFreeze", () => {
 
 // Tests specific to working directories
 describe("workDir", () => {
-	let workDir = fs.mkdtempSync("utils-test-work-dir");
+	let tempDir = path.normalize(path.resolve(fs.mkdtempSync("utils-test-")));
+	let workDir = path.join(tempDir, "workDir");
+	let urlDir = path.join(tempDir, "urlDir");
+
 	beforeEach(() => {
-		workDir = fs.mkdtempSync("utils-test-work-dir");
+		tempDir = path.normalize(path.resolve(fs.mkdtempSync("utils-test-")));
+		workDir = path.join(tempDir, "workDir");
+		urlDir = path.join(tempDir, "urlDir");
+
+		fs.mkdirSync(workDir, { recursive: true });
+		fs.mkdirSync(urlDir, { recursive: true });
 	});
 
 	it("log engine events yield expected pulumi-logs.out", async () => {
@@ -156,5 +165,182 @@ describe("workDir", () => {
 			}
 		}
 		expect(jsonLogs).toEqual(events);
+	});
+
+	it("swap tilde on empty string", () => {
+		const stringPath = "";
+		const pathPrime = swapTildeWithHome(stringPath);
+		expect(pathPrime).toBe("");
+	});
+
+	it("swap tilde on root", () => {
+		const stringPath = "/";
+		const pathPrime = swapTildeWithHome(stringPath);
+		expect(pathPrime).toBe("/");
+	});
+
+	it("swap tilde on relative path", () => {
+		const stringPath = "abc/def";
+		const pathPrime = swapTildeWithHome(stringPath);
+		expect(pathPrime).toBe("abc/def");
+	});
+
+	it("swap tilde on dot path", () => {
+		const stringPath = "./abc/def";
+		const pathPrime = swapTildeWithHome(stringPath);
+		expect(pathPrime).toBe("./abc/def");
+	});
+
+	it("swap tilde on absolute path", () => {
+		const stringPath = "/abc/def";
+		const pathPrime = swapTildeWithHome(stringPath);
+		expect(pathPrime).toBe("/abc/def");
+	});
+
+	it("swap tilde on tilde path", () => {
+		const stringPath = "~/abc/def";
+
+		// Home directory must be non-empty for this test to mean something
+		const home = homedir();
+		expect(home.length).toBeGreaterThan(0);
+
+		const pathPrime = swapTildeWithHome(stringPath);
+		expect(pathPrime).toBe(home + "/abc/def");
+	});
+
+	it("workspace options creates non-existing workDir", () => {
+		const args: ToSynthesize = {
+			meshName: "test",
+			projectName: "project",
+			accounts: [],
+			psk: "",
+			workDir: path.join(workDir, "derived"),
+			pulumiLogFile: path.join(
+				path.join(workDir, "derived"),
+				"pulumi-logs.out",
+			),
+		};
+
+		const opts = prepareWorkspaceOptions(args);
+
+		expect(fs.existsSync(args.workDir)).toBeTruthy();
+		expect(opts).toMatchObject({
+			workDir: args.workDir,
+		});
+	});
+
+	it("workspace options uses already existing workDir", () => {
+		const args: ToSynthesize = {
+			meshName: "test",
+			projectName: "project",
+			accounts: [],
+			psk: "",
+			workDir,
+			pulumiLogFile: path.join(workDir, "pulumi-logs.out"),
+		};
+
+		const opts = prepareWorkspaceOptions(args);
+
+		expect(fs.existsSync(args.workDir)).toBeTruthy();
+		expect(fs.existsSync(path.join(args.workDir, "derived"))).toBeFalsy();
+		expect(opts).toMatchObject({
+			workDir: args.workDir,
+		});
+	});
+
+	it("workspace options has url as an absolute path", () => {
+		const args: ToSynthesize = {
+			meshName: "test",
+			projectName: "project",
+			accounts: [],
+			psk: "",
+			workDir: path.join(workDir, "dervied"),
+			pulumiLogFile: path.join(
+				path.join(workDir, "dervied"),
+				"pulumi-logs.out",
+			),
+			url: "file://" + path.join(urlDir, "derived"),
+		};
+
+		const opts = prepareWorkspaceOptions(args);
+
+		expect(fs.existsSync(args.workDir)).toBeTruthy();
+		expect(fs.existsSync(path.join(urlDir, "derived"))).toBeTruthy();
+		expect(opts).toMatchObject({
+			workDir: args.workDir,
+			projectSettings: {
+				name: args.projectName,
+				runtime: "nodejs",
+				backend: {
+					url: args.url,
+				},
+			},
+		});
+	});
+
+	it("workspace options has url as a relative path", () => {
+		const args: ToSynthesize = {
+			meshName: "test",
+			projectName: "project",
+			accounts: [],
+			psk: "",
+			workDir: path.join(workDir, "dervied"),
+			pulumiLogFile: path.join(
+				path.join(workDir, "dervied"),
+				"pulumi-logs.out",
+			),
+			url: "file://" + path.join("urlDir", "derived"),
+		};
+
+		const opts = prepareWorkspaceOptions(args);
+
+		expect(fs.existsSync(args.workDir)).toBeTruthy();
+		expect(fs.existsSync(path.join(urlDir, "derived"))).toBeFalsy();
+		expect(
+			fs.existsSync(path.join(args.workDir, path.join("urlDir", "derived"))),
+		).toBeTruthy();
+		expect(opts).toMatchObject({
+			workDir: args.workDir,
+			projectSettings: {
+				name: args.projectName,
+				runtime: "nodejs",
+				backend: {
+					url: args.url,
+				},
+			},
+		});
+	});
+
+	it("workspace options has a non-file url", () => {
+		const args: ToSynthesize = {
+			meshName: "test",
+			projectName: "project",
+			accounts: [],
+			psk: "",
+			workDir: path.join(workDir, "dervied"),
+			pulumiLogFile: path.join(
+				path.join(workDir, "dervied"),
+				"pulumi-logs.out",
+			),
+			url: "s3://" + path.join(urlDir, "derived"),
+		};
+
+		const opts = prepareWorkspaceOptions(args);
+
+		expect(fs.existsSync(args.workDir)).toBeTruthy();
+		expect(fs.existsSync(path.join(urlDir, "derived"))).toBeFalsy();
+		expect(
+			fs.existsSync(path.join(args.workDir, path.join("urlDir", "derived"))),
+		).toBeFalsy();
+		expect(opts).toMatchObject({
+			workDir: args.workDir,
+			projectSettings: {
+				name: args.projectName,
+				runtime: "nodejs",
+				backend: {
+					url: args.url,
+				},
+			},
+		});
 	});
 });
