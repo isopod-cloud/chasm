@@ -208,7 +208,7 @@ describe("workDir", () => {
 		expect(pathPrime).toBe(home + "/abc/def");
 	});
 
-	it("workspace options workDir created", () => {
+	it("workspace options creates non-existing workDir", () => {
 		const args: ToSynthesize = {
 			meshName: "test",
 			projectName: "project",
@@ -229,7 +229,7 @@ describe("workDir", () => {
 		});
 	});
 
-	it("workspace options workDir exists", () => {
+	it("workspace options uses already existing workDir", () => {
 		const args: ToSynthesize = {
 			meshName: "test",
 			projectName: "project",
@@ -248,7 +248,7 @@ describe("workDir", () => {
 		});
 	});
 
-	it("workspace options url absolute file", () => {
+	it("workspace options has url as an absolute path", () => {
 		const args: ToSynthesize = {
 			meshName: "test",
 			projectName: "project",
@@ -278,7 +278,7 @@ describe("workDir", () => {
 		});
 	});
 
-	it("workspace options url relative file", () => {
+	it("workspace options has url as a relative path", () => {
 		const args: ToSynthesize = {
 			meshName: "test",
 			projectName: "project",
@@ -311,7 +311,7 @@ describe("workDir", () => {
 		});
 	});
 
-	it("workspace options url not a file", () => {
+	it("workspace options has a non-file url", () => {
 		const args: ToSynthesize = {
 			meshName: "test",
 			projectName: "project",
