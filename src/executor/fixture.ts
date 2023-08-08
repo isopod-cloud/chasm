@@ -18,20 +18,19 @@ import { ToSynthesize } from "../config";
 
 import {
 	getPulumiOutputStream,
-	isPresent,
 	logEngineEvent,
 	prepareWorkspaceOptions,
 } from "../utils";
 
 // Normally I don't love singleton classes like this but I think the alternative is worse.
 // TODO: this class isn't really serving the purpose I thought it would.  I think we need to rethink its use.
-export class Targeter<Output> {
-	private _dummy!: Output;
-	private _targets: Record<string, Output | undefined> = {};
-	private _dummyCount = 0;
+export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
+	public readonly dummyIp: Output;
+	private targets: Record<string, Output | undefined> = {};
+	private dummyCount = 0;
 
 	constructor(dummy: Output) {
-		this._dummy = dummy;
+		this.dummyIp = dummy;
 	}
 
 	set(name: string, value: Output): typeof this {
@@ -42,22 +41,22 @@ export class Targeter<Output> {
 		// if (this.targets[name] !== undefined) {
 		// 	throw new Error(`Duplicate name: ${name}`);
 		// }
-		this._targets[name] = value;
+		this.targets[name] = value;
 		return this;
 	}
 
 	get(name: string): Output {
-		const ip = this._targets[name];
+		const ip = this.targets[name];
 		if (ip === undefined) {
-			this._dummyCount++;
-			return this._dummy;
+			this.dummyCount++;
+			return this.dummyIp;
 		} else {
 			return ip;
 		}
 	}
 
 	*[Symbol.iterator](): Iterator<[string, Output]> {
-		for (const [k, v] of Object.entries(this._targets)) {
+		for (const [k, v] of Object.entries(this.targets)) {
 			if (v !== undefined) {
 				yield [k, v];
 			} else {
@@ -67,11 +66,7 @@ export class Targeter<Output> {
 	}
 
 	countDummies(): number {
-		return this._dummyCount;
-	}
-
-	dummyIp(): Output {
-		return this._dummy;
+		return this.dummyCount;
 	}
 }
 
@@ -393,7 +388,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 										{
 											// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 											ignoreChanges:
-												targetIp === targeter.dummyIp() ? ["ipAddress"] : [],
+												targetIp === targeter.dummyIp ? ["ipAddress"] : [],
 										},
 									);
 									const vpnConnection = new aws.ec2.VpnConnection(
@@ -448,7 +443,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 											{
 												// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 												ignoreChanges:
-													targetIp === targeter.dummyIp()
+													targetIp === targeter.dummyIp
 														? ["gatewayIpAddress"]
 														: [],
 											},
@@ -521,7 +516,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 											dependsOn: [srcAccount.vpcs[srcVpc].forwardingRules.esp],
 											// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 											ignoreChanges:
-												targetIp === targeter.dummyIp() ? ["peerIp"] : [],
+												targetIp === targeter.dummyIp ? ["peerIp"] : [],
 										},
 									);
 									//TODO: add routes here
