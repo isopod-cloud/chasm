@@ -25,12 +25,16 @@ import {
 
 // Normally I don't love singleton classes like this but I think the alternative is worse.
 // TODO: this class isn't really serving the purpose I thought it would.  I think we need to rethink its use.
-export class Targeter {
-	private targets: Record<string, pulumi.Output<IpV4Address> | undefined> = {};
-	public readonly dummyIp = pulumi.output(IpV4Address.parse("1.1.1.1"));
-	private dummyCount = 0;
+export class Targeter<Output> {
+	private _dummy!: Output;
+	private _targets: Record<string, Output | undefined> = {};
+	private _dummyCount = 0;
 
-	set(name: string, value: pulumi.Output<IpV4Address>): typeof this {
+	constructor(dummy: Output) {
+		this._dummy = dummy;
+	}
+
+	set(name: string, value: Output): typeof this {
 		// TODO: this check really should pass but it doesn't just yet.
 		// I think that is evidence of a bug somewhere but I don't have time to
 		// chase it down at the moment.
@@ -38,23 +42,22 @@ export class Targeter {
 		// if (this.targets[name] !== undefined) {
 		// 	throw new Error(`Duplicate name: ${name}`);
 		// }
-
-		this.targets[name] = value;
+		this._targets[name] = value;
 		return this;
 	}
 
-	get(name: string): pulumi.Output<IpV4Address> {
-		const ip = this.targets[name];
+	get(name: string): Output {
+		const ip = this._targets[name];
 		if (ip === undefined) {
-			this.dummyCount++;
-			return this.dummyIp;
+			this._dummyCount++;
+			return this._dummy;
 		} else {
 			return ip;
 		}
 	}
 
-	*[Symbol.iterator](): Iterator<[string, pulumi.Output<IpV4Address>]> {
-		for (const [k, v] of Object.entries(this.targets)) {
+	*[Symbol.iterator](): Iterator<[string, Output]> {
+		for (const [k, v] of Object.entries(this._targets)) {
 			if (v !== undefined) {
 				yield [k, v];
 			} else {
@@ -64,7 +67,11 @@ export class Targeter {
 	}
 
 	countDummies(): number {
-		return this.dummyCount;
+		return this._dummyCount;
+	}
+
+	dummyIp(): Output {
+		return this._dummy;
 	}
 }
 
@@ -285,7 +292,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 		) =>
 		() => {
 			const meshPsk = pulumi.secret(meshArgs.psk);
-			const targeter = new Targeter();
+			const targeter = new Targeter<pulumi.Output<IpV4Address>>(pulumi.output(IpV4Address.parse("1.1.1.1")));
 			if (phase1Targeter !== undefined) {
 				for (const [k, v] of Object.entries(phase1Targeter)) {
 					if (v === undefined) {
@@ -386,7 +393,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 										{
 											// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 											ignoreChanges:
-												targetIp === targeter.dummyIp ? ["ipAddress"] : [],
+												targetIp === targeter.dummyIp() ? ["ipAddress"] : [],
 										},
 									);
 									const vpnConnection = new aws.ec2.VpnConnection(
@@ -441,7 +448,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 											{
 												// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 												ignoreChanges:
-													targetIp === targeter.dummyIp
+													targetIp === targeter.dummyIp()
 														? ["gatewayIpAddress"]
 														: [],
 											},
@@ -514,7 +521,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 											dependsOn: [srcAccount.vpcs[srcVpc].forwardingRules.esp],
 											// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 											ignoreChanges:
-												targetIp === targeter.dummyIp ? ["peerIp"] : [],
+												targetIp === targeter.dummyIp() ? ["peerIp"] : [],
 										},
 									);
 									//TODO: add routes here
