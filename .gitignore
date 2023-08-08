@@ -136,6 +136,9 @@ dist.js
 # Ignore the pulumi stack
 stackWorkDir/
 
+# Ignore the utils-test directories
+utils-test-*
+
 # Ignore the sandbox area
 sandbox/
 
