@@ -25,7 +25,7 @@ import {
 
 // Normally I don't love singleton classes like this but I think the alternative is worse.
 // TODO: this class isn't really serving the purpose I thought it would.  I think we need to rethink its use.
-class Targeter {
+export class Targeter {
 	private targets: Record<string, pulumi.Output<IpV4Address> | undefined> = {};
 	public readonly dummyIp = pulumi.output(IpV4Address.parse("1.1.1.1"));
 	private dummyCount = 0;
