@@ -18,19 +18,22 @@ import { ToSynthesize } from "../config";
 
 import {
 	getPulumiOutputStream,
-	isPresent,
 	logEngineEvent,
 	prepareWorkspaceOptions,
 } from "../utils";
 
 // Normally I don't love singleton classes like this but I think the alternative is worse.
 // TODO: this class isn't really serving the purpose I thought it would.  I think we need to rethink its use.
-class Targeter {
-	private targets: Record<string, pulumi.Output<IpV4Address> | undefined> = {};
-	public readonly dummyIp = pulumi.output(IpV4Address.parse("1.1.1.1"));
+export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
+	public readonly dummyIp: Output;
+	private targets: Record<string, Output | undefined> = {};
 	private dummyCount = 0;
 
-	set(name: string, value: pulumi.Output<IpV4Address>): typeof this {
+	constructor(dummy: Output) {
+		this.dummyIp = dummy;
+	}
+
+	set(name: string, value: Output): typeof this {
 		// TODO: this check really should pass but it doesn't just yet.
 		// I think that is evidence of a bug somewhere but I don't have time to
 		// chase it down at the moment.
@@ -38,12 +41,11 @@ class Targeter {
 		// if (this.targets[name] !== undefined) {
 		// 	throw new Error(`Duplicate name: ${name}`);
 		// }
-
 		this.targets[name] = value;
 		return this;
 	}
 
-	get(name: string): pulumi.Output<IpV4Address> {
+	get(name: string): Output {
 		const ip = this.targets[name];
 		if (ip === undefined) {
 			this.dummyCount++;
@@ -53,7 +55,7 @@ class Targeter {
 		}
 	}
 
-	*[Symbol.iterator](): Iterator<[string, pulumi.Output<IpV4Address>]> {
+	*[Symbol.iterator](): Iterator<[string, Output]> {
 		for (const [k, v] of Object.entries(this.targets)) {
 			if (v !== undefined) {
 				yield [k, v];
@@ -285,7 +287,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 		) =>
 		() => {
 			const meshPsk = pulumi.secret(meshArgs.psk);
-			const targeter = new Targeter();
+			const targeter = new Targeter<pulumi.Output<IpV4Address>>(pulumi.output(IpV4Address.parse("1.1.1.1")));
 			if (phase1Targeter !== undefined) {
 				for (const [k, v] of Object.entries(phase1Targeter)) {
 					if (v === undefined) {
