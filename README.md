@@ -28,7 +28,7 @@ Enter Chasm, a tool for bridging the gaps between the clouds for you.
 
 - **Multi-account, single cloud meshing**: we currently do not support situations where you have more than one account associated to a single CSP and want to mesh two or more subnets that are in different CSP accounts (i.e. if you have two AWS accounts with a subnet in account A, and a subnet in account B, these tools do not currently support connectivity between them).
 
-- **VPC to VPC meshing**: You cannot connect two or more subnets across any VPCs.
+- **VPC to VPC meshing in single cloud**: You cannot connect two or more subnets across VPCs in the same cloud provider.
 
 - **Azure cross-subscription meshing**: You cannot connect two or more Azure subnets across Azure subscriptions.
 
