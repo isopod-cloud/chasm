@@ -1,9 +1,9 @@
 import * as aws from "@pulumi/aws";
 import * as azure from "@pulumi/azure-native";
 import * as gcp from "@pulumi/gcp";
-import * as fs from "fs";
 import * as pulumi from "@pulumi/pulumi";
 import * as crypto from "crypto";
+import { overlappingCidrsExist } from "../utils";
 
 import {
 	AwsAccount,
@@ -91,7 +91,9 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 							tags: vpc.tags,
 						},
 					);
-					return [vpc.id, { vpnGateway }];
+
+					const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
+					return [vpc.id, { vpnGateway, cidrs, subnets: vpc.subnets }];
 				}) ?? [],
 			),
 		};
@@ -155,6 +157,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 						},
 					);
 
+					const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 					return [
 						vpc.id,
 						{
@@ -162,6 +165,8 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 							publicIp,
 							vpnGateway,
 							resourceGroupName: vpc.resourceGroupName,
+							subnets: vpc.subnets,
+							cidrs,
 						},
 					];
 				}) ?? [],
@@ -233,6 +238,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 							},
 						),
 					} as const;
+					const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 					return [
 						vpc.id,
 						{
@@ -241,6 +247,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 							vpnGateway,
 							publicIp,
 							forwardingRules,
+							cidrs,
 						},
 					];
 				}) ?? [],
@@ -285,9 +292,11 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 				| Record<string, IpV4Address | undefined>
 				| undefined = undefined,
 		) =>
-		() => {
+		async () => {
 			const meshPsk = pulumi.secret(meshArgs.psk);
-			const targeter = new Targeter<pulumi.Output<IpV4Address>>(pulumi.output(IpV4Address.parse("1.1.1.1")));
+			const targeter = new Targeter<pulumi.Output<IpV4Address>>(
+				pulumi.output(IpV4Address.parse("1.1.1.1")),
+			);
 			if (phase1Targeter !== undefined) {
 				for (const [k, v] of Object.entries(phase1Targeter)) {
 					if (v === undefined) {
@@ -300,7 +309,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 			const phase1Result = config.map((account) => {
 				switch (account.type) {
 					case "AwsAccount": {
-						return buildForAwsAccount(account);
+						return buildForAwsAccount(account, config);
 					}
 					case "AzureAccount": {
 						return buildForAzureAccount(account);
@@ -319,7 +328,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 			// Fill out targeter
 			for (const srcAccount of phase1Result) {
 				for (const dstAccount of phase1Result) {
-					if (dstAccount.type == AccountType.AwsAccount) {
+					if (dstAccount.type === AccountType.AwsAccount) {
 						// You can't do anything here because AWS is a goof and won't give me the IPs when I actually want them.
 						continue;
 					}
@@ -362,6 +371,45 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 				}
 			}
 
+			/* We need to get rid of the enum for phase1 result to fix the typing system*/
+			const allCidrs: string[] = [];
+			for (const acct of phase1Result) {
+				switch (acct.type) {
+					case AccountType.AwsAccount: {
+						for (const [_key, vpc] of Object.entries(acct.vpcs)) {
+							for (const cidr of vpc.cidrs) {
+								allCidrs.push(cidr);
+							}
+						}
+						break;
+					}
+					case AccountType.AzureAccount: {
+						for (const [_key, vpc] of Object.entries(acct.vpcs)) {
+							for (const cidr of vpc.cidrs) {
+								allCidrs.push(cidr);
+							}
+						}
+						break;
+					}
+					case AccountType.GcpAccount: {
+						for (const [_key, vpc] of Object.entries(acct.vpcs)) {
+							for (const cidr of vpc.cidrs) {
+								allCidrs.push(cidr);
+							}
+						}
+						break;
+					}
+					default: {
+						void (acct satisfies never);
+						break;
+					}
+				}
+			}
+
+			if (overlappingCidrsExist(allCidrs)) {
+				throw Error("Can not mesh overlapping cidrs ranges in subnets");
+			}
+
 			// Now hook up the mesh
 			// TODO: refactor this into provider specific functions
 			for (const srcAccount of phase1Result) {
@@ -371,6 +419,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 							if (srcVpc === dstVpc) {
 								continue;
 							}
+
 							switch (srcAccount.type) {
 								case AccountType.AwsAccount: {
 									const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
@@ -410,10 +459,96 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 										`${dstVpc}->${srcVpc}`,
 										vpnConnection.tunnel1Address,
 									);
+
+									const defaultRouteTable = await aws.ec2.getRouteTable({
+										routeTableId: (
+											await aws.ec2.getVpc({
+												id: srcVpc,
+											})
+										).mainRouteTableId,
+									});
+
+									const routeTables = await Promise.all(
+										(
+											await aws.ec2.getRouteTables({
+												vpcId: srcVpc,
+											})
+										).ids.map((routeTableId) =>
+											aws.ec2.getRouteTable({ routeTableId }),
+										),
+									);
+
+									const relevantSubnetIds = new Set(
+										srcAccount.vpcs[srcVpc].subnets.map((subnet) => subnet.id),
+									);
+
+									const routingTableUsage = routeTables
+										.map((x) => {
+											return x.associations.map((a) => {
+												return [a.subnetId, a.routeTableId] as const;
+											});
+										})
+										.flat(1)
+										.reduce(
+											(acc, [subnetId, routeTableId]) => {
+												if (!relevantSubnetIds.has(subnetId)) {
+													return acc;
+												}
+												acc.relevantRoutingTables.add(routeTableId);
+												acc.usedSubnets.add(subnetId);
+												return acc;
+											},
+											{
+												relevantRoutingTables: new Set<string>(),
+												usedSubnets: new Set<string>(),
+											},
+										);
+
+									if (
+										routingTableUsage.usedSubnets.size != relevantSubnetIds.size
+									) {
+										routingTableUsage.relevantRoutingTables.add(
+											defaultRouteTable.id,
+										);
+									}
+
+									const uniqueRouteTables = Object.fromEntries(
+										routeTables.map((routeTable) => {
+											return [routeTable.id, routeTable] as const;
+										}),
+									);
+
+									const routes = Object.fromEntries(
+										dstAccount.vpcs[dstVpc].cidrs.map((cidr) => {
+											const vpnRoute = new aws.ec2.VpnConnectionRoute(
+												`${srcVpc}/${dstVpc}/${cidr}/vpnRoute`,
+												{
+													destinationCidrBlock: cidr,
+													vpnConnectionId: vpnConnection.id,
+												},
+											);
+											const routes = Array.from(
+												routingTableUsage.relevantRoutingTables,
+											).map((routeTableId) => {
+												return new aws.ec2.Route(
+													`${srcVpc}/${dstVpc}/${cidr}/${routeTableId}/route`,
+													{
+														routeTableId: routeTableId,
+														destinationCidrBlock: cidr,
+														gatewayId: srcAccount.vpcs[srcVpc].vpnGateway.id,
+													},
+												);
+											});
+											return [cidr, { vpnRoute, routes }] as const;
+										}),
+									);
+
+									// TODO: check for overlaps in route tables
 									break;
 								}
 								case AccountType.AzureAccount: {
 									const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
+									const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
 									const localNetworkGateway =
 										new azure.network.LocalNetworkGateway(
 											`local-network-gateway/${srcVpc}->${dstVpc}`,
@@ -437,7 +572,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 													(x) => x ?? {},
 												),
 												localNetworkAddressSpace: {
-													addressPrefixes: ["10.99.99.0/24"], // This is the list of prefixes the tunnel will accept. TODO: fill in properly
+													addressPrefixes: dstCidrs, // This is the list of prefixes the tunnel will accept.
 												},
 											},
 											{
@@ -490,7 +625,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 								}
 								case AccountType.GcpAccount: {
 									const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
-									const _vpnTunnel = new gcp.compute.VPNTunnel(
+									const vpnTunnel = new gcp.compute.VPNTunnel(
 										`vpn-tunnel/${srcVpc}->${dstVpc}`,
 										{
 											region: srcAccount.vpcs[srcVpc].vpnGateway.region,
@@ -519,7 +654,25 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 												targetIp === targeter.dummyIp ? ["peerIp"] : [],
 										},
 									);
-									//TODO: add routes here
+									const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
+									const _routes = dstCidrs.map((dstCidr) => {
+										return new gcp.compute.Route(
+											`route/${srcVpc}/${dstVpc}/${dstCidr}`,
+											{
+												name: pulumi.interpolate`${dstAccount} for ${srcVpc} to ${dstVpc} for ${dstCidr}`.apply(
+													(x) =>
+														`a-${crypto
+															.createHash("sha256")
+															.update(x)
+															.digest("hex")
+															.slice(0, 60)}`,
+												),
+												destRange: dstCidr,
+												network: srcAccount.vpcs[srcVpc].network.name,
+												nextHopVpnTunnel: vpnTunnel.id,
+											},
+										);
+									});
 									break;
 								}
 								default: {
@@ -531,7 +684,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 					}
 				}
 			}
-			return Promise.resolve(
+			return await Promise.resolve(
 				Array.from(
 					function* () {
 						for (const [k, v] of targeter) {
