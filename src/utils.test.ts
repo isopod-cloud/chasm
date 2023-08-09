@@ -1,5 +1,6 @@
 import {
 	lock,
+	overlappingCidrsExist,
 	getPulumiOutputStream,
 	logEngineEvent,
 	swapTildeWithHome,
@@ -10,7 +11,6 @@ import * as fs from "fs";
 import { ToSynthesize } from "./config";
 import * as pulumi from "@pulumi/pulumi";
 import { homedir } from "os";
-
 describe("deepFreeze", () => {
 	it("should freeze a simple object", () => {
 		const obj = { name: "John", age: 30 };
@@ -50,6 +50,53 @@ describe("deepFreeze", () => {
 
 		expect(frozenObj1).toBe(obj1);
 		expect(frozenObj2).toBe(obj2);
+	});
+});
+
+describe("overlappingCidrsExist", () => {
+	it("should detect overlapping subnets", () => {
+		console.log("t1");
+		expect(overlappingCidrsExist(["0.0.0.0/0", "1.2.3.4/32"])).toBeTruthy();
+	});
+	it("should not detect non-overlapping subnets", () => {
+		expect(
+			overlappingCidrsExist(["10.1.0.0/24", "10.1.1.0/24"]),
+		).not.toBeTruthy();
+	});
+	it("should detect equal subnets", () => {
+		expect(
+			overlappingCidrsExist(["172.20.16.0/24", "172.20.16.7/24"]),
+		).toBeTruthy();
+	});
+	it("should detect non-overlap on large numbers of subnets", () => {
+		expect(
+			overlappingCidrsExist([
+				"172.20.16.0/24",
+				"10.0.0.0/8",
+				"169.254.0.0/24",
+				"172.16.4.0/29",
+				"172.16.4.8/29",
+				"172.16.4.16/29",
+				"172.16.4.24/29",
+				"172.16.4.32/29",
+				"172.16.4.40/29",
+			]),
+		).not.toBeTruthy();
+	});
+	it("should detect overlap on large numbers of subnets", () => {
+		expect(
+			overlappingCidrsExist([
+				"172.20.16.0/24",
+				"172.16.4.39/29",
+				"10.0.0.0/8",
+				"169.254.0.0/24",
+				"172.16.4.0/29",
+				"172.16.4.8/29",
+				"172.16.4.16/29",
+				"172.16.4.24/29",
+				"172.16.4.32/29",
+			]),
+		).toBeTruthy();
 	});
 });
 

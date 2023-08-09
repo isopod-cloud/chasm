@@ -2,6 +2,7 @@ import { ReadonlyDeep } from "type-fest";
 import { homedir } from "os";
 import * as path from "path";
 import * as fs from "fs";
+import * as ipa from "ip-address";
 
 import * as pulumi from "@pulumi/pulumi";
 import { ToSynthesize } from "./config";
@@ -10,7 +11,7 @@ import { ToSynthesize } from "./config";
 export const isPresent = <T>(v: T): v is Exclude<T, null | undefined> =>
 	v !== undefined && v !== null;
 
-export const sleep = (ms: number) =>
+export const sleep = (ms: number): Promise<unknown> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
 export const timeIt = async <T>(
@@ -132,6 +133,22 @@ export function prepareWorkspaceOptions(
 	return options;
 }
 
+export function overlappingCidrsExist(cidrs: string[]): boolean {
+	for (const [index, cidr] of cidrs.entries()) {
+		const cidr1ip = new ipa.Address4(cidr);
+		for (const [_index2, cidr2] of cidrs.slice(index + 1).entries()) {
+			const cidr2ip = new ipa.Address4(cidr2);
+			if (cidr1ip.isInSubnet(cidr2ip) || cidr2ip.isInSubnet(cidr1ip)) {
+				console.error(
+					`Error: ${cidr} and ${cidr2} are overlapping. Can not mesh with current config.json`,
+				);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 export function getPulumiOutputStream(args: ToSynthesize): fs.WriteStream {
 	return fs.createWriteStream(args.pulumiLogFile);
 }
@@ -139,7 +156,7 @@ export function getPulumiOutputStream(args: ToSynthesize): fs.WriteStream {
 export function logEngineEvent(
 	stream: fs.WriteStream,
 	event: pulumi.automation.EngineEvent,
-) {
+): void {
 	stream.write(JSON.stringify(event));
 	stream.write("\n");
 }
