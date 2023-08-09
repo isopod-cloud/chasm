@@ -79,7 +79,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 	}
 
 	// TODO: move this into aws section
-	const buildForAwsAccount = (account: AwsAccount, config: Config) => {
+	const buildForAwsAccount = (account: AwsAccount) => {
 		return {
 			type: AccountType.AwsAccount as const,
 			vpcs: Object.fromEntries(
@@ -294,7 +294,9 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 		) =>
 		async () => {
 			const meshPsk = pulumi.secret(meshArgs.psk);
-			const targeter = new Targeter<pulumi.Output<IpV4Address>>(pulumi.output(IpV4Address.parse("1.1.1.1")));
+			const targeter = new Targeter<pulumi.Output<IpV4Address>>(
+				pulumi.output(IpV4Address.parse("1.1.1.1")),
+			);
 			if (phase1Targeter !== undefined) {
 				for (const [k, v] of Object.entries(phase1Targeter)) {
 					if (v === undefined) {

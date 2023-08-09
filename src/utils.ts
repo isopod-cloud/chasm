@@ -11,7 +11,7 @@ import { ToSynthesize } from "./config";
 export const isPresent = <T>(v: T): v is Exclude<T, null | undefined> =>
 	v !== undefined && v !== null;
 
-export const sleep = (ms: number) =>
+export const sleep = (ms: number): Promise<unknown> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
 export const timeIt = async <T>(
@@ -153,7 +153,7 @@ export function getPulumiOutputStream(args: ToSynthesize): fs.WriteStream {
 export function logEngineEvent(
 	stream: fs.WriteStream,
 	event: pulumi.automation.EngineEvent,
-) {
+): void {
 	stream.write(JSON.stringify(event));
 	stream.write("\n");
 }

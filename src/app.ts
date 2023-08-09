@@ -14,10 +14,9 @@ import { isPresent } from "./utils";
 import { getSubnets } from "./discovery";
 import * as readline from "readline";
 import { deProvisionNetwork, provisionNetwork } from "./executor/fixture";
-import { Config } from "./types/new-types";
 import * as path from "path";
 
-async function main(config: Configuration) {
+async function main() {
 	const program = new Command();
 
 	const packageJson = await readFromPackageFile("./package.json");
@@ -142,9 +141,9 @@ async function main(config: Configuration) {
 		});
 
 	program
-		// .version(packageJson.version)
-		// .name(packageJson.name)
-		// .description(packageJson.description ? packageJson.description : "---")
+		.version(packageJson.version)
+		.name(packageJson.name)
+		.description(packageJson.description ? packageJson.description : "---")
 		.usage("<OPTION...>")
 		.addCommand(findCmd)
 		.addCommand(meshCmd);
