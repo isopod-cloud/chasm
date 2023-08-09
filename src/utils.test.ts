@@ -51,6 +51,9 @@ describe("deepFreeze", () => {
 		expect(frozenObj1).toBe(obj1);
 		expect(frozenObj2).toBe(obj2);
 	});
+});
+
+describe("overlappingCidrsExist", () => {
 	it("should detect overlapping subnets", () => {
 		console.log("t1");
 		expect(overlappingCidrsExist(["0.0.0.0/0", "1.2.3.4/32"])).toBeTruthy();
@@ -388,5 +391,3 @@ describe("workDir", () => {
 		});
 	});
 });
-
-// Tests specific to working directories
