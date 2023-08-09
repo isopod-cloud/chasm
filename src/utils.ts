@@ -139,6 +139,9 @@ export function overlappingCidrsExist(cidrs: string[]): boolean {
 		for (const [_index2, cidr2] of cidrs.slice(index + 1).entries()) {
 			const cidr2ip = new ipa.Address4(cidr2);
 			if (cidr1ip.isInSubnet(cidr2ip) || cidr2ip.isInSubnet(cidr1ip)) {
+				console.error(
+					`Error: ${cidr} and ${cidr2} are overlapping. Can not mesh with current config.json`,
+				);
 				return true;
 			}
 		}
