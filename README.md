@@ -279,7 +279,9 @@ If you run into error messages creating the mesh network from the previous secti
 
 - Note that if you are using multiple subscriptions, accounts, projects, etc within a cloud provider, but are getting error messages corresponding to the WRONG id, even though you set that id correctly in config.json, then you might need to change which subscription, account, project, etc is your primary one. For Azure, you can do this via:
 
+```sh
 az account set --subscription <subscription-id-you-want-as-primary>
+```
 
 - If you are seeing error messages related to a VPC being attached to a Virtual Private Gateway (VPG), then you might need to go the the console site of the cloud provider and detach the VPC from the VPG
 
