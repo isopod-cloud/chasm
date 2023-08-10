@@ -1,6 +1,7 @@
-import { Targeter } from "./fixture";
+import { Targeter, planMesh } from "./fixture";
 
 import { IpV4Address } from "../types/new-types";
+import { ToSynthesize } from "../config";
 
 describe("Targeter", () => {
     let targeter: Targeter<IpV4Address>;
@@ -108,5 +109,112 @@ describe("Targeter", () => {
             ["dddd", IpV4Address.parse("42.43.43.42")],
         ]);
         expect(actualSet).toEqual(expectedSet3);
+    });
+});
+
+describe("Provision", () => {
+    // const meshStack : pulumi.automation.Stack;
+
+    beforeEach(() => {
+        // meshStack = await pulumi.automation.LocalWorkspace.createOrSelectStack(
+        //     {
+        //         stackName: "test-network",
+        //         workDir: "./mount/stack"
+        //     }, {
+        //         workDir: "./mount/stack"
+        //     });
+    });
+
+    it("planMesh", async () => {
+        const accounts = [
+            {
+                type: "AwsAccount",
+                id: "test-id-aws1",
+                region: "us-east-1",
+                vpcs: [
+                    {
+                        id: "vpc-12345678",
+                        tags: {
+                            "managed-by": "chasm",
+                        },
+                        type: "AwsVpc",
+                        region: "us-east-1",
+                        cidr: "172.20.0.0/16",
+                        subnets: [
+                            {
+                                id: "subnet-00000001",
+                                cidr: "172.20.16.0/20",
+                                type: "AwsSubnet"
+                            },
+                            {
+                                id: "subnet-00000002",
+                                cidr: "172.20.32.0/20",
+                                type: "AwsSubnet"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                type: "GcpAccount",
+                id: "test-id-gcp1",
+                project: "making-things-up",
+                vpcs: [
+                    {
+                        id: "fedcba987654321012",
+                        tags: {
+                            "managed-by": "chasm",
+                        },
+                        type: "GcpVpc",
+                        projectName: "making-things-up",
+                        networkName: "mtu-dev01-vpc",
+                        subnets: [
+                            {
+                                id: "0000000000000000111",
+                                cidr: "172.10.16.0/24",
+                                type: "GcpSubnet",
+                                region: "us-west4"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                type: "AzureAccount",
+                id: "test-id-az1",
+                subscriptionId: "12345678-9abc-def0-1234-56789abcdef",
+                vpcs: [
+                    {
+                        id: "/subscriptions/12345678-9abc-def0-1234-56789abcdef/resourceGroups/test0/providers/Microsoft.Network/virtualNetworks/test0-vnet-000100002",
+                        tags: {
+                            "managed-by": "chasm",
+                        },
+                        type: "AzureVpc",
+                        region: "southcentralus",
+                        resourceGroupName: "/subscriptions/12345678-9abc-def0-1234-56789abcdef/resourceGroups/test0",
+                        subnets: [
+                            {
+                                id: "/subscriptions/12345678-9abc-def0-1234-56789abcdef/resourceGroups/test0/providers/Microsoft.Network/virtualNetworks/test0-vnet-000100002/subnets/test0-subnet-1",
+                                cidr: "15.0.1.0/24",
+                                type: "AzureSubnet"
+                            }
+                        ]
+                    }
+                ]
+            },
+        ];
+        const args = ToSynthesize.parse({
+            meshName: "test-network",
+            accounts,
+            psk: "Fake PSK",
+            projectName: "test-network",
+            workDir: "./mount/mesh-workdir",
+            pulumiLogFile: "./mount/mesh-workdir/pulumi-logs.out",
+        });
+        const foo = planMesh(args, args.accounts);
+        for (const item of await foo()) {
+        console.log(`item = ${item[0]} and ${JSON.stringify(item[1])}`);
+        }
+        expect(2+2).toBe(4);
     });
 });
