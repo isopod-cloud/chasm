@@ -21,12 +21,20 @@ Enter Chasm, a tool for bridging the gaps between the clouds for you.
 ### Network designs supported
 
 - **Inter-cloud meshing**: meshing subnets between two or more distinct clouds i.e. AWS and GCP.
-- **Intra-cloud meshing**: meshing subnets within same CSP in different regions (under same account only).
+
 - **Mix of inter and intra-cloud Meshing**: meshing subnets between two or more distinct clouds, and more than one subnet within same CSP, where same CSP is under a single account.
 
-### Network designs not currently supported
+### Known limitations
 
-- **Multi-account cloud meshing**: we currently do not support situations where you have more than one account associated to a single CSP and want to mesh two or more subnets that are in different CSP accounts (i.e. if you have two AWS accounts with a subnet in account A, and a subnet in account B, these tools do not currently support connectivity between them).
+**No NAT**: There is no built in NAT, meaning we can't mesh subnets with overlapping CIDRS.
+
+- **Multi-account, single cloud meshing**: We currently do not support situations where you have more than one account associated to a single CSP and want to mesh two or more subnets that are in different CSP accounts (i.e. if you have two AWS accounts with a subnet in account A, and a subnet in account B, these tools do not currently support connectivity between them).
+
+- **Azure cross-subscription meshing**: You cannot connect two or more Azure subnets across Azure subscriptions.
+
+- **AWS cross-region meshing**: You cannot connect two or more AWS subnets across AWS regions.
+
+- **GCP cross-project meshing**: You cannot mesh together two VPCs across GCP projects.
 
 ### Supported clouds
 
