@@ -395,6 +395,7 @@ You can run unit tests with:
 ```sh
 yarn test
 ```
+The discovery tests require a `config.json` to be set up in the base directory of the repository to run. Additonally the tests for each individual cloud will utilize the first account of its type listed in the file.
 
 ## Licensing
 

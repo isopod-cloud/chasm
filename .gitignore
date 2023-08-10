@@ -148,3 +148,7 @@ book
 # Pulumi
 Pulumi.*.yaml
 /.pulumi/
+
+# Ignore the output of some tests
+new-types.test2.json
+utils-test-work-*
