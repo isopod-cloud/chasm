@@ -153,7 +153,5 @@ async function main() {
 }
 
 if (require.main === module) {
-	loadEnv();
-	const config = Configuration.parse(process.env);
-	void main(config);
+	void main();
 }
