@@ -309,7 +309,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 			const phase1Result = config.map((account) => {
 				switch (account.type) {
 					case "AwsAccount": {
-						return buildForAwsAccount(account, config);
+						return buildForAwsAccount(account);
 					}
 					case "AzureAccount": {
 						return buildForAzureAccount(account);

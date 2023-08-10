@@ -1,9 +1,4 @@
-import {
-	Configuration,
-	FromConfigFile,
-	FromPackageFile,
-	ToSynthesize,
-} from "./config";
+import { FromConfigFile, FromPackageFile, ToSynthesize } from "./config";
 import { Command } from "@commander-js/extra-typings";
 // Sam: this is it:      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Gotta use the specific extra-typings import
@@ -152,9 +147,7 @@ async function main() {
 }
 
 if (require.main === module) {
-	loadEnv();
-	const config = Configuration.parse(process.env);
-	void main(config);
+	void main();
 }
 
 async function readFromPackageFile(filePath: string): Promise<FromPackageFile> {
