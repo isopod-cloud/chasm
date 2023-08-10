@@ -17,7 +17,7 @@ import {
 } from "@aws-sdk/client-ec2";
 
 // AWS Helper Functions may be replaced by some fixturizers or whatnot
-async function buildAwsTestFixturesDA(
+async function createAwsTestFixturesDA(
 	ec2Client: EC2Client,
 	numSubnets: number,
 ): Promise<void> {
@@ -114,7 +114,7 @@ describe("discovery agent tests for aws", () => {
 	});
 
 	beforeAll(async () => {
-		await buildAwsTestFixturesDA(ec2Client, numSubnets);
+		await createAwsTestFixturesDA(ec2Client, numSubnets);
 	});
 	afterAll(async () => {
 		await destroyAwsTestFixturesDA(ec2Client);

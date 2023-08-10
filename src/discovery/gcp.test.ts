@@ -48,7 +48,7 @@ const tryUntilDone = async <U>(
 	}
 };
 
-async function buildGcpTestFixturesDA(
+async function createGcpTestFixturesDA(
 	subnetClient: SubnetworksClient,
 	netClient: NetworksClient,
 	gcpAccount: GcpAccount,
@@ -136,7 +136,7 @@ describe("discovery agent tests for gcp", () => {
 	const subnetClient = new SubnetworksClient({});
 	const gcpAccount = getAccountConfigForTest("./config.json", "GcpAccount") as GcpAccount; // If this function didn't error, this has to be an GcpAccount
 	beforeAll(async () => {
-		await buildGcpTestFixturesDA(
+		await createGcpTestFixturesDA(
 			subnetClient,
 			netClient,
 			gcpAccount

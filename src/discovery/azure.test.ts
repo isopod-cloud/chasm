@@ -7,7 +7,7 @@ import { getAccountConfigForTest } from "../utils";
 
 
 // Azure Helper functions
-async function buildAzureTestFixturesDA(
+async function createAzureTestFixturesDA(
 	rgClient: ResourceManagementClient,
 	subnetClient: NetworkManagementClient,
 	numSubnets: number,
@@ -73,7 +73,7 @@ describe("discovery agent tests for azure", () => {
 	const rgClient = new ResourceManagementClient(creds, subId);
 	const subnetClient = new NetworkManagementClient(creds, subId);
 	beforeAll(async () => {
-		await buildAzureTestFixturesDA(
+		await createAzureTestFixturesDA(
 			rgClient,
 			subnetClient,
 			numSubnets,
