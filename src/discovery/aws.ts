@@ -8,7 +8,6 @@ import {
 } from "@aws-sdk/client-ec2";
 import { AwsVpc, AwsSubnet, AwsAccount } from "../types/new-types";
 import { isPresent } from "../utils";
-//import { EC2 } from "aws-sdk";
 
 export async function getVpcs(account: AwsAccount): Promise<AwsVpc[]> {
 	// TODO: Do we still want the user to have the option to find VPCs in a single region?
@@ -16,8 +15,6 @@ export async function getVpcs(account: AwsAccount): Promise<AwsVpc[]> {
 	const ec2Client = new EC2Client({
 		region: account.region,
 	});
-
-	//const ec2 = new EC2({region: ''});
 
 	const regionRes = await ec2Client.send(new DescribeRegionsCommand({}));
 
@@ -27,14 +24,6 @@ export async function getVpcs(account: AwsAccount): Promise<AwsVpc[]> {
 	}
 
 		for (const region of regionRes.Regions) {
-			// const vpcRes = ec2.describeVpcs(params, (err: AWS.AWSError, data: AWS.EC2.Types.DescribeVpcsResult) => {
-			// 	if (err) {
-			// 		console.log(err);
-			// 	} else {
-			// 		console.log("EC2 service find VPCs result");
-			// 		console.log(data);
-			// 	}
-			// })
 			const ec2Client = new EC2Client({
 				region: region.RegionName,
 			});
