@@ -98,6 +98,12 @@ Chasm uses the cloud credentials from the CLIs installed on the host machine to 
     az login
     ```
 
+3. If your `az` CLI is logged into multiple Azure Subscriptions, Chasm will use the one currently set to be active.  You can change that like so:
+
+    ```sh
+    az account set --subscription subscription-id-you-want-active
+    ```
+
 #### Google Cloud Platform
 
 1. Install by following the [gcloud CLI install tutorial](https://cloud.google.com/sdk/docs/install#linux)
@@ -271,7 +277,9 @@ docker run --rm -ti \
     chasm mesh -n "my-network" --url file:///app/mount/stack
 ```
 
-When prompted, enter a pre shared key (PSK). It should be atleast 8 characters. PSKs used during the IKEv2 (Internet Key Exchange) to secure traffic between the two peers while they work on generating random keys to use to talk to each other. [More about pre shared keys here](https://en.wikipedia.org/wiki/Pre-shared_key)
+When prompted, enter a pre shared key (PSK). It must be at least 8 characters. PSKs are used for Internet Key Exchange (IKE) to secure traffic between the two peers while they work on generating random keys to use to talk to each other. Refer to [the RFC](https://datatracker.ietf.org/doc/html/rfc2409#section-5.4) for more details.
+
+If you run into some trouble, you might find some suggestions under [Troubleshooting](TROUBLESHOOTING.md).
 
 ### Tearing down a mesh network
 
