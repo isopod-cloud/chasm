@@ -98,6 +98,12 @@ Chasm uses the cloud credentials from the CLIs installed on the host machine to 
     az login
     ```
 
+3. If you have multiple active subscriptions in Azure, but want to set a primary subscription for use with Chasm, you can do that via:
+
+    ```sh
+    az account set --subscription subscription-id-you-want-as-primary
+    ```
+
 #### Google Cloud Platform
 
 1. Install by following the [gcloud CLI install tutorial](https://cloud.google.com/sdk/docs/install#linux)
@@ -273,19 +279,7 @@ docker run --rm -ti \
 
 When prompted, enter a pre shared key (PSK). It should be atleast 8 characters. PSKs used during the IKEv2 (Internet Key Exchange) to secure traffic between the two peers while they work on generating random keys to use to talk to each other. [More about pre shared keys here](https://en.wikipedia.org/wiki/Pre-shared_key)
 
-#### Troubleshooting Mesh Networks
-
-If you run into error messages creating the mesh network from the previous section, you might need to make some corrections to the config.json or the resources themselves.
-
-- Note that if you are using multiple subscriptions, accounts, projects, etc within a cloud provider, but are getting error messages corresponding to the WRONG id, even though you set that id correctly in config.json, then you might need to change which subscription, account, project, etc is your primary one. For Azure, you can do this via:
-
-```sh
-az account set --subscription <subscription-id-you-want-as-primary>
-```
-
-- If you are seeing error messages related to a VPC being attached to a Virtual Private Gateway (VPG), then you might need to go the the console site of the cloud provider and detach the VPC from the VPG
-
-- If you are seeing error messages pertaining to public IP Addresses, then you might need to go to the console site of the cloud provider and detach this IP address from the subnet and/or NIC, then delete it. It might also be helpful to, on the same console site, create a gateway subnet for the VPC if there isn't already one. If you choose to do this, then be sure to re-run chasm find (as mentioned earlier), and update the vpcs in config.json with the details of this gateway subnet before retrying the creation of the mesh network.
+If you run into some trouble, you might find some suggestions under [Troubleshooting](TROUBLESHOOTING.md).
 
 ### Tearing down a mesh network
 
