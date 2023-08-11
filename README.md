@@ -98,10 +98,10 @@ Chasm uses the cloud credentials from the CLIs installed on the host machine to 
     az login
     ```
 
-3. If you have multiple active subscriptions in Azure, but want to set a primary subscription for use with Chasm, you can do that via:
+3. If your `az` CLI is logged into multiple Azure Subscriptions, Chasm will use the one currently set to be active.  You can change that like so:
 
     ```sh
-    az account set --subscription subscription-id-you-want-as-primary
+    az account set --subscription subscription-id-you-want-active
     ```
 
 #### Google Cloud Platform
