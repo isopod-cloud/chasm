@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Every user's experience with Isopod Chasm will be different, and therefore, we will not be able to describe everyone's situations here. Nonetheless, if you get stuck while using Chasm, here are a list of suggestions to try.
+Every user's experience with Isopod Chasm will be different, and therefore, we will not be able to describe everyone's situations here. Nonetheless, if you get stuck while using Chasm, this document contains a list of suggestions to try. If after reading this entire document, you are still stuck, feel free to make an issue at [our Gitlab Issue tracker](https://gitlab.com/isopod-cloud/chasm/-/issues) and we will address it as soon as possible.
 
 ## Standing up a Mesh Network
 
