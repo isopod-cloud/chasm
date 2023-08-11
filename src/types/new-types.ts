@@ -57,10 +57,11 @@ export const Tags = z.record(z.string()).default({
 });
 export type Tags = z.infer<typeof Tags>;
 
-const BaseSubnet = z.object({
+export const BaseSubnet = z.object({
 	id: z.string().min(1),
 	cidr: IpV4Cidr,
 });
+export type BaseSubnet = z.infer<typeof BaseSubnet>;
 
 export const AwsSubnet = BaseSubnet.extend({
 	type: z.literal("AwsSubnet"),
@@ -85,10 +86,11 @@ export const Subnet = z.discriminatedUnion("type", [
 ]);
 export type Subnet = z.infer<typeof Subnet>;
 
-const BaseVpc = z.object({
+export const BaseVpc = z.object({
 	id: z.string().min(1),
 	tags: Tags,
 });
+export type BaseVpc = z.infer<typeof BaseVpc>;
 
 export const AwsVpc = BaseVpc.extend({
 	type: z.literal("AwsVpc"),
