@@ -7,10 +7,17 @@ import { isPresent, overlappingCidrsExist } from "../utils";
 
 import {
 	AwsAccount,
+	AwsSubnet,
+	AwsVpc,
 	AzureAccount,
+	AzureSubnet,
+	AzureVpc,
 	Config,
 	GcpAccount,
+	GcpSubnet,
+	GcpVpc,
 	IpV4Address,
+	IpV4Cidr,
 	MapToOutputs,
 } from "../types/new-types";
 
@@ -77,41 +84,87 @@ export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
 	}
 }
 
+type Nullable<T> = T | null;
+
 // TODO: move this into aws section, exported for testing purposes
-export const buildForAwsAccount = (account: AwsAccount, mockup: boolean) => {
+export interface AwsVpcResource {
+	vpnGateway: aws.ec2.VpnGateway;
+}
+
+export interface AwsVpcInfoItem {
+	resource: Nullable<AwsVpcResource>;
+	cidrs: Array<IpV4Cidr>;
+	subnets: Array<AwsSubnet>;
+	vpc: AwsVpc;
+}
+
+export interface AwsVpcInfo {
+	type: AccountType;
+	mockup: boolean;
+	vpcs: Record<string, AwsVpcInfoItem>;
+}
+
+export const buildForAwsAccount = (account: AwsAccount, mockup: boolean): AwsVpcInfo => {
+	const vpcArray: Array<[string, AwsVpcInfoItem]> = account.vpcs?.map((vpc) => {
+		const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
+		if (mockup) {
+			return [vpc.id, { resource: null, cidrs, subnets: vpc.subnets, vpc, }];
+		} else {
+			const vpnGateway = new aws.ec2.VpnGateway(
+				`vpn-gateway/${account.id}/${vpc.id}`,
+				{
+					vpcId: vpc.id,
+					tags: vpc.tags,
+				},
+			);
+
+			return [vpc.id, { resource: {vpnGateway}, cidrs, subnets: vpc.subnets, vpc, }];
+		}
+	}) ?? [];
 	return {
 		type: AccountType.AwsAccount as const,
 		mockup,
-		vpcs: Object.fromEntries(
-			account.vpcs?.map((vpc) => {
-				const vpnGateway = new aws.ec2.VpnGateway(
-					`vpn-gateway/${account.id}/${vpc.id}`,
-					{
-						vpcId: vpc.id,
-						tags: vpc.tags,
-					},
-				);
-
-				const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
-				return [vpc.id, { vpnGateway, cidrs, subnets: vpc.subnets }];
-			}) ?? [],
-		),
+		vpcs: Object.fromEntries(vpcArray),
 	};
 };
+
+export interface AzureVpcResource {
+	gatewaySubnet: pulumi.Output<azure.network.GetSubnetResult>;
+	publicIp: azure.network.PublicIPAddress;
+	vpnGateway: azure.network.VirtualNetworkGateway;
+}
+
+export interface AzureVpcInfoItem {
+	resource: Nullable<AzureVpcResource>;
+	vpcName: string;
+	resourceGroupNameTruncated: string;
+	resourceGroupName: string;
+	cidrs: Array<IpV4Cidr>;
+	subnets: Array<AzureSubnet>;
+	vpc: AzureVpc;
+}
+
+export interface AzureVpcInfo {
+	type: AccountType;
+	mockup: boolean;
+	vpcs: Record<string, AzureVpcInfoItem>;
+}
 
 // TODO: move this into azure section, exported for testing purposes
 export const buildForAzureAccount = (
 	account: AzureAccount,
 	mockup: boolean,
-) => {
-	return {
-		type: AccountType.AzureAccount as const,
-		mockup,
-		vpcs: Object.fromEntries(
-			account.vpcs?.map((vpc) => {
-				const vpcName = vpc.id.split("/").slice(-1)[0];
+): AzureVpcInfo => {
+	const vpcArray: Array<[string, AzureVpcInfoItem]> =
+		account.vpcs?.map((vpc) => {
+			const vpcName = vpc.id.split("/").slice(-1)[0];
+			const resourceGroupNameTruncated = vpc.resourceGroupName.split("/").slice(-1)[0];
+			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
+			if (mockup) {
+				return [vpc.id, { resource: null, vpcName, resourceGroupNameTruncated, resourceGroupName: vpc.resourceGroupName, cidrs, subnets: vpc.subnets, vpc }];
+			} else {
 				const gatewaySubnet = azure.network.getSubnetOutput({
-					resourceGroupName: vpc.resourceGroupName.split("/").slice(-1)[0],
+					resourceGroupName: resourceGroupNameTruncated,
 					virtualNetworkName: vpcName,
 					subnetName: "GatewaySubnet",
 				});
@@ -119,7 +172,7 @@ export const buildForAzureAccount = (
 				const publicIp = new azure.network.PublicIPAddress(
 					`public-ip/${vpc.id}`,
 					{
-						resourceGroupName: vpc.resourceGroupName.split("/").slice(-1)[0],
+						resourceGroupName: resourceGroupNameTruncated,
 						publicIpAddressName: vpcName,
 						location: vpc.region,
 						publicIPAllocationMethod: "Static",
@@ -134,7 +187,7 @@ export const buildForAzureAccount = (
 				const vpnGateway = new azure.network.VirtualNetworkGateway(
 					`vpn-gateway/${vpc.id}`,
 					{
-						resourceGroupName: vpc.resourceGroupName.split("/").slice(-1)[0],
+						resourceGroupName: resourceGroupNameTruncated,
 						enableBgp: false, // We can change this to do dynamic routing
 						activeActive: false, // We're not gonna use HA.
 						gatewayType: "VPN", // This is either VPN or ExpressRoute. We want VPN.
@@ -161,94 +214,148 @@ export const buildForAzureAccount = (
 					},
 				);
 
-				const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 				return [
 					vpc.id,
 					{
-						gatewaySubnet,
-						publicIp,
-						vpnGateway,
+						resource: {
+							gatewaySubnet,
+							publicIp,
+							vpnGateway,
+						},
+						vpcName,
+						resourceGroupNameTruncated,
 						resourceGroupName: vpc.resourceGroupName,
-						subnets: vpc.subnets,
 						cidrs,
-					},
+						subnets: vpc.subnets,
+						vpc,
+					}
 				];
-			}) ?? [],
-		),
+			}
+		}) ?? [];
+	return {
+		type: AccountType.AzureAccount as const,
+		mockup,
+		vpcs: Object.fromEntries(vpcArray),
 	};
 };
 
+export interface GcpForwardingRules {
+	esp: gcp.compute.ForwardingRule;
+	ipsec: gcp.compute.ForwardingRule;
+	ipsecNat: gcp.compute.ForwardingRule;
+}
+
+export interface GcpVpcResource {
+	network: pulumi.Output<gcp.compute.GetNetworkResult>;
+	vpnGateway: gcp.compute.VPNGateway;
+	publicIp: gcp.compute.Address;
+	forwardingRules: GcpForwardingRules;
+}
+
+export interface GcpVpcInfoItem {
+	resource: Nullable<GcpVpcResource>;
+	account: GcpAccount;
+	region: string;
+	vpnName: string;
+	cidrs: Array<IpV4Cidr>;
+	vpc: GcpVpc;
+}
+
+export interface GcpVpcInfo {
+	type: AccountType;
+	mockup: boolean;
+	vpcs: Record<string, GcpVpcInfoItem>;
+}
+
 // TODO: move this into gcp section, exported for testing purposes
 export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
-	return {
-		type: AccountType.GcpAccount as const,
-		mockup,
-		vpcs: Object.fromEntries(
-			account.vpcs?.map((vpc) => {
-				const network = gcp.compute.getNetworkOutput({
-					name: vpc.networkName,
-				});
-				const vpnGateway = new gcp.compute.VPNGateway(`vpn-gateway/${vpc.id}`, {
-					network: network.name,
-					name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}`,
+	const vpcArray: Array<[string, GcpVpcInfoItem]> = account.vpcs?.map((vpc) => {
+		const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
+		const region = vpc.subnets[0].region;
+		const vpnName = vpc.id.split("/").slice(-1)[0];
+		if (mockup) {
+			return [vpc.id,
+				{
+					resource: null,
+					account,
+					region,
+					vpnName,
+					cidrs,
+					vpc,
+				}];
+		} else {
+			const network = gcp.compute.getNetworkOutput({
+				name: vpc.networkName,
+			});
+			const vpnGateway = new gcp.compute.VPNGateway(`vpn-gateway/${vpc.id}`, {
+				network: network.name,
+				name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}`,
+				region: vpc.subnets[0].region,
+				project: vpc.projectName,
+			});
+			const publicIp = new gcp.compute.Address(`public-ip/${vpc.id}`, {
+				name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}`,
+				project: vpc.projectName,
+				region: vpc.subnets[0].region,
+				labels: vpc.tags,
+			});
+			const forwardingRules = {
+				esp: new gcp.compute.ForwardingRule(`forwarding-rule/${vpc.id}/esp`, {
+					name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}-esp`,
+					ipAddress: publicIp.address,
+					ipProtocol: "ESP",
 					region: vpc.subnets[0].region,
-					project: vpc.projectName,
-				});
-				const publicIp = new gcp.compute.Address(`public-ip/${vpc.id}`, {
-					name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}`,
-					project: vpc.projectName,
-					region: vpc.subnets[0].region,
-					labels: vpc.tags,
-				});
-				const forwardingRules = {
-					esp: new gcp.compute.ForwardingRule(`forwarding-rule/${vpc.id}/esp`, {
-						name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}-esp`,
-						ipAddress: publicIp.address,
-						ipProtocol: "ESP",
-						region: vpc.subnets[0].region,
-						target: vpnGateway.id,
-					}),
-					ipsec: new gcp.compute.ForwardingRule(
-						`forwarding-rule/${vpc.id}/ipsec`,
-						{
-							name: pulumi.interpolate`a-${
-								vpc.id.split("/").slice(-1)[0]
-							}-ipsec`,
-							ipAddress: publicIp.address,
-							ipProtocol: "UDP",
-							region: vpc.subnets[0].region,
-							portRange: "500",
-							target: vpnGateway.id,
-						},
-					),
-					ipsecNat: new gcp.compute.ForwardingRule(
-						`forwarding-rule/${vpc.id}/ipsecNat`,
-						{
-							name: pulumi.interpolate`a-${
-								vpc.id.split("/").slice(-1)[0]
-							}-ipsecnat`,
-							ipAddress: publicIp.address,
-							ipProtocol: "UDP",
-							region: vpc.subnets[0].region,
-							portRange: "4500",
-							target: vpnGateway.id,
-						},
-					),
-				} as const;
-				const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
-				return [
-					vpc.id,
+					target: vpnGateway.id,
+				}),
+				ipsec: new gcp.compute.ForwardingRule(
+					`forwarding-rule/${vpc.id}/ipsec`,
 					{
-						account,
+						name: pulumi.interpolate`a-${
+							vpc.id.split("/").slice(-1)[0]
+						}-ipsec`,
+						ipAddress: publicIp.address,
+						ipProtocol: "UDP",
+						region: vpc.subnets[0].region,
+						portRange: "500",
+						target: vpnGateway.id,
+					},
+				),
+				ipsecNat: new gcp.compute.ForwardingRule(
+					`forwarding-rule/${vpc.id}/ipsecNat`,
+					{
+						name: pulumi.interpolate`a-${
+							vpc.id.split("/").slice(-1)[0]
+						}-ipsecnat`,
+						ipAddress: publicIp.address,
+						ipProtocol: "UDP",
+						region: vpc.subnets[0].region,
+						portRange: "4500",
+						target: vpnGateway.id,
+					},
+				),
+			} as const;
+			return [
+				vpc.id,
+				{
+					resource: {
 						network,
 						vpnGateway,
 						publicIp,
 						forwardingRules,
-						cidrs,
 					},
-				];
-			}) ?? [],
-		),
+					account,
+					region,
+					vpnName,
+					cidrs,
+					vpc,
+				},
+			];
+		}
+	}) ?? [];
+	return {
+		type: AccountType.GcpAccount as const,
+		mockup,
+		vpcs: Object.fromEntries(vpcArray),
 	};
 };
 
@@ -259,7 +366,7 @@ export async function planMeshInternal(
 		| Record<string, IpV4Address | undefined>
 		| undefined = undefined,
 	mockup: boolean = false,
-): Promise<Array<readonly [IpV4Address, pulumi.Output<IpV4Address>]>> {
+): Promise<Array<readonly [string, IpV4Address]>> {
 	const meshPsk = pulumi.secret(meshArgs.psk);
 	const targeter = new Targeter<pulumi.Output<IpV4Address>>(
 		pulumi.output(IpV4Address.parse("1.1.1.1")),
@@ -306,10 +413,21 @@ export async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							targeter.set(
-								`${srcVpc}->${dstVpcId}`,
-								dstVpc.publicIp.ipAddress.apply((x) => x!),
-							);
+							if (!mockup && isPresent(dstVpc.resource)) { 
+								targeter.set(
+									`${srcVpc}->${dstVpcId}`,
+									dstVpc.resource?.publicIp.ipAddress.apply((x) => x!),
+								);
+							} else if (mockup) {
+								const pieces = dstVpc.cidr.split("/");
+								if (pieces.length == 0) {
+									throw new Error(`Bad vpc cidr: ${dstVpc.cidrs}`);
+								}
+								targeter.set(
+									`${srcVpc}->${dstVpcId}`,
+									pieces[0]
+								);
+							}
 						}
 						break;
 					}
@@ -318,7 +436,18 @@ export async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							targeter.set(`${srcVpc}->${dstVpcId}`, dstVpc.publicIp.address);
+							if (!mockup && isPresent(dstVpc.resource)) {
+								targeter.set(`${srcVpc}->${dstVpcId}`, dstVpc.resource?.publicIp.address);
+							} else if (mockup) {
+								const pieces = dstVpc.cidr.split("/");
+								if (pieces.length == 0) {
+									throw new Error(`Bad vpc cidr: ${dstVpc.cidrs}`);
+								}
+								targeter.set(
+									`${srcVpc}->${dstVpcId}`,
+									pieces[0]
+								);
+							}
 						}
 						break;
 					}
@@ -382,248 +511,264 @@ export async function planMeshInternal(
 
 					switch (srcAccount.type) {
 						case AccountType.AwsAccount: {
-							const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
-							const remoteGateway = new aws.ec2.CustomerGateway(
-								`customer-gateway/${srcVpc}->${dstVpc}`,
-								{
-									type: "ipsec.1",
-									deviceName: `${srcVpc}-to-${dstVpc}`,
-									bgpAsn: `${65000}`, // TODO: fill in with a real ASN
-									tags: srcAccount.vpcs[srcVpc].vpnGateway.tags.apply(
-										(x) => x ?? {},
-									),
-									ipAddress: targetIp,
-								},
-								{
-									// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
-									ignoreChanges:
-										targetIp === targeter.dummyIp ? ["ipAddress"] : [],
-								},
-							);
-							const vpnConnection = new aws.ec2.VpnConnection(
-								`vpn-connection/${srcVpc}->${dstVpc}`,
-								{
-									customerGatewayId: remoteGateway.id,
-									vpnGatewayId: srcAccount.vpcs[srcVpc].vpnGateway.id,
-									staticRoutesOnly: true, // TODO: eventually we should support BGP
-									tunnel1PresharedKey: meshPsk,
-									tags: srcAccount.vpcs[srcVpc].vpnGateway.tags.apply(
-										(x) => x ?? {},
-									),
-									type: "ipsec.1",
-								},
-							);
-							// NOTE: this is "backwards" on purpose.  AWS is a goof and won't give me the IPs when I actually want them.
-							// This is one of the two key steps in fixing the circular dependency resulting from AWS's api.
-							targeter.set(
-								`${dstVpc}->${srcVpc}`,
-								vpnConnection.tunnel1Address,
-							);
-
-							const defaultRouteTable = await aws.ec2.getRouteTable({
-								routeTableId: (
-									await aws.ec2.getVpc({
-										id: srcVpc,
-									})
-								).mainRouteTableId,
-							});
-
-							const routeTables = await Promise.all(
-								(
-									await aws.ec2.getRouteTables({
-										vpcId: srcVpc,
-									})
-								).ids.map((routeTableId) =>
-									aws.ec2.getRouteTable({ routeTableId }),
-								),
-							);
-
-							const relevantSubnetIds = new Set(
-								srcAccount.vpcs[srcVpc].subnets.map((subnet) => subnet.id),
-							);
-
-							const routingTableUsage = routeTables
-								.map((x) => {
-									return x.associations.map((a) => {
-										return [a.subnetId, a.routeTableId] as const;
-									});
-								})
-								.flat(1)
-								.reduce(
-									(acc, [subnetId, routeTableId]) => {
-										if (!relevantSubnetIds.has(subnetId)) {
-											return acc;
-										}
-										acc.relevantRoutingTables.add(routeTableId);
-										acc.usedSubnets.add(subnetId);
-										return acc;
+							if (!mockup && isPresent(srcAccount.vpcs[srcVpc].resource)) {
+								const srcVpnGateway = srcAccount.vpcs[srcVpc].resource?.vpnGateway!;
+								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
+								const remoteGateway = new aws.ec2.CustomerGateway(
+									`customer-gateway/${srcVpc}->${dstVpc}`,
+									{
+										type: "ipsec.1",
+										deviceName: `${srcVpc}-to-${dstVpc}`,
+										bgpAsn: `${65000}`, // TODO: fill in with a real ASN
+										tags: srcVpnGateway.tags.apply(
+											(x) => x ?? {}),
+										ipAddress: targetIp,
 									},
 									{
-										relevantRoutingTables: new Set<string>(),
-										usedSubnets: new Set<string>(),
+										// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
+										ignoreChanges:
+											targetIp === targeter.dummyIp ? ["ipAddress"] : [],
 									},
 								);
-
-							if (
-								routingTableUsage.usedSubnets.size != relevantSubnetIds.size
-							) {
-								routingTableUsage.relevantRoutingTables.add(
-									defaultRouteTable.id,
+								const vpnConnection = new aws.ec2.VpnConnection(
+									`vpn-connection/${srcVpc}->${dstVpc}`,
+									{
+										customerGatewayId: remoteGateway.id,
+										vpnGatewayId: srcVpnGateway.id,
+										staticRoutesOnly: true, // TODO: eventually we should support BGP
+										tunnel1PresharedKey: meshPsk,
+										tags: srcVpnGateway.tags.apply(
+											(x) => x ?? {},
+										),
+										type: "ipsec.1",
+									},
 								);
-							}
+								// NOTE: this is "backwards" on purpose.  AWS is a goof and won't give me the IPs when I actually want them.
+								// This is one of the two key steps in fixing the circular dependency resulting from AWS's api.
+								targeter.set(
+									`${dstVpc}->${srcVpc}`,
+									vpnConnection.tunnel1Address,
+								);
 
-							const uniqueRouteTables = Object.fromEntries(
-								routeTables.map((routeTable) => {
-									return [routeTable.id, routeTable] as const;
-								}),
-							);
+								const defaultRouteTable = await aws.ec2.getRouteTable({
+									routeTableId: (
+										await aws.ec2.getVpc({
+											id: srcVpc,
+										})
+									).mainRouteTableId,
+								});
 
-							const routes = Object.fromEntries(
-								dstAccount.vpcs[dstVpc].cidrs.map((cidr) => {
-									const vpnRoute = new aws.ec2.VpnConnectionRoute(
-										`${srcVpc}/${dstVpc}/${cidr}/vpnRoute`,
+								const routeTables = await Promise.all(
+									(
+										await aws.ec2.getRouteTables({
+											vpcId: srcVpc,
+										})
+									).ids.map((routeTableId) =>
+										aws.ec2.getRouteTable({ routeTableId }),
+									),
+								);
+
+								const relevantSubnetIds = new Set(
+									srcAccount.vpcs[srcVpc].subnets.map((subnet) => subnet.id),
+								);
+
+								const routingTableUsage = routeTables
+									.map((x) => {
+										return x.associations.map((a) => {
+											return [a.subnetId, a.routeTableId] as const;
+										});
+									})
+									.flat(1)
+									.reduce(
+										(acc, [subnetId, routeTableId]) => {
+											if (!relevantSubnetIds.has(subnetId)) {
+												return acc;
+											}
+											acc.relevantRoutingTables.add(routeTableId);
+											acc.usedSubnets.add(subnetId);
+											return acc;
+										},
 										{
-											destinationCidrBlock: cidr,
-											vpnConnectionId: vpnConnection.id,
+											relevantRoutingTables: new Set<string>(),
+											usedSubnets: new Set<string>(),
 										},
 									);
-									const routes = Array.from(
-										routingTableUsage.relevantRoutingTables,
-									).map((routeTableId) => {
-										return new aws.ec2.Route(
-											`${srcVpc}/${dstVpc}/${cidr}/${routeTableId}/route`,
+
+								if (
+									routingTableUsage.usedSubnets.size != relevantSubnetIds.size
+								) {
+									routingTableUsage.relevantRoutingTables.add(
+										defaultRouteTable.id,
+									);
+								}
+
+								const uniqueRouteTables = Object.fromEntries(
+									routeTables.map((routeTable) => {
+										return [routeTable.id, routeTable] as const;
+									}),
+								);
+
+								const routes = Object.fromEntries(
+									dstAccount.vpcs[dstVpc].cidrs.map((cidr) => {
+										const vpnRoute = new aws.ec2.VpnConnectionRoute(
+											`${srcVpc}/${dstVpc}/${cidr}/vpnRoute`,
 											{
-												routeTableId: routeTableId,
 												destinationCidrBlock: cidr,
-												gatewayId: srcAccount.vpcs[srcVpc].vpnGateway.id,
+												vpnConnectionId: vpnConnection.id,
 											},
 										);
-									});
-									return [cidr, { vpnRoute, routes }] as const;
-								}),
-							);
-
+										const routes = Array.from(
+											routingTableUsage.relevantRoutingTables,
+										).map((routeTableId) => {
+											return new aws.ec2.Route(
+												`${srcVpc}/${dstVpc}/${cidr}/${routeTableId}/route`,
+												{
+													routeTableId: routeTableId,
+													destinationCidrBlock: cidr,
+													gatewayId: srcVpnGateway.id,
+												},
+											);
+										});
+										return [cidr, { vpnRoute, routes }] as const;
+									}),
+								);
+							} else if (mockup) {
+								// For mockups, pretend the IP part of the singular cidr field is the tunnel address.
+								// When we don't have actual AWS resources, we gotta improvise...
+								const pieces = srcAccount.vpcs[srcVpc].vpc.cidr.split("/");
+								if (pieces.length == 0) {
+									throw new Error(`Bad vpc cidr: ${srcAccount.vpcs[srcVpc].vpc.cidr}`);
+								}
+								targeter.set(
+									`${dstVpc}->${srcVpc}`,
+									pieces[0],
+								);
+							}
 							// TODO: check for overlaps in route tables
 							break;
 						}
 						case AccountType.AzureAccount: {
-							const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
-							const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
-							const localNetworkGateway = new azure.network.LocalNetworkGateway(
-								`local-network-gateway/${srcVpc}->${dstVpc}`,
-								{
-									resourceGroupName: srcAccount.vpcs[srcVpc].resourceGroupName
-										.split("/")
-										.slice(-1)[0],
-									localNetworkGatewayName:
-										pulumi.interpolate`${srcAccount.vpcs[srcVpc].vpnGateway.name}-${dstVpc}`.apply(
-											(x) => {
-												return crypto
-													.createHash("sha256")
-													.update(x)
-													.digest("hex");
-											},
-										),
-									gatewayIpAddress: targetIp,
-									tags: srcAccount.vpcs[srcVpc].vpnGateway.tags.apply(
-										(x) => x ?? {},
-									),
-									localNetworkAddressSpace: {
-										addressPrefixes: dstCidrs, // This is the list of prefixes the tunnel will accept.
-									},
-								},
-								{
-									// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
-									ignoreChanges:
-										targetIp === targeter.dummyIp ? ["gatewayIpAddress"] : [],
-								},
-							);
-
-							const _vpnConnection =
-								new azure.network.VirtualNetworkGatewayConnection(
-									`vpn-connection/${srcVpc}->${dstVpc}`,
+							if (!mockup && isPresent(srcAccount.vpcs[srcVpc].resource)) {
+								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
+								const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
+								const localNetworkGateway = new azure.network.LocalNetworkGateway(
+									`local-network-gateway/${srcVpc}->${dstVpc}`,
 									{
-										resourceGroupName: srcAccount.vpcs[srcVpc].resourceGroupName
+										resourceGroupName: srcAccount.vpcs[srcVpc].resource?.resourceGroupName
 											.split("/")
 											.slice(-1)[0],
-										virtualNetworkGatewayConnectionName:
-											pulumi.interpolate`${srcVpc}-${dstVpc}`.apply((x) => {
-												return crypto
-													.createHash("sha256")
-													.update(x)
-													.digest("hex");
-											}),
-										virtualNetworkGateway1: {
-											id: srcAccount.vpcs[srcVpc].vpnGateway.id.apply((x) => {
-												console.log("vpn gateway id: ", x);
-												return x;
-											}),
-										},
-										tags: srcAccount.vpcs[srcVpc].vpnGateway.tags.apply(
+										localNetworkGatewayName:
+											pulumi.interpolate`${srcAccount.vpcs[srcVpc].resource?.vpnGateway.name}-${dstVpc}`.apply(
+												(x) => {
+													return crypto
+														.createHash("sha256")
+														.update(x)
+														.digest("hex");
+												},
+											),
+										gatewayIpAddress: targetIp,
+										tags: srcAccount.vpcs[srcVpc].resource?.vpnGateway.tags.apply(
 											(x) => x ?? {},
 										),
-										connectionProtocol: "IKEv2",
-										localNetworkGateway2: {
-											id: localNetworkGateway.id,
+										localNetworkAddressSpace: {
+											addressPrefixes: dstCidrs, // This is the list of prefixes the tunnel will accept.
 										},
-										enableBgp: false,
-										sharedKey: meshPsk,
-										connectionType: "IPsec",
-										useLocalAzureIpAddress: false,
+									},
+									{
+										// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
+										ignoreChanges:
+											targetIp === targeter.dummyIp ? ["gatewayIpAddress"] : [],
 									},
 								);
+
+								const _vpnConnection =
+									new azure.network.VirtualNetworkGatewayConnection(
+										`vpn-connection/${srcVpc}->${dstVpc}`,
+										{
+											resourceGroupName: srcAccount.vpcs[srcVpc].resource?.resourceGroupName
+												.split("/")
+												.slice(-1)[0],
+											virtualNetworkGatewayConnectionName:
+												pulumi.interpolate`${srcVpc}-${dstVpc}`.apply((x) => {
+													return crypto
+														.createHash("sha256")
+														.update(x)
+														.digest("hex");
+												}),
+											virtualNetworkGateway1: {
+												id: srcAccount.vpcs[srcVpc].resource?.vpnGateway.id.apply((x) => {
+													console.log("vpn gateway id: ", x);
+													return x;
+												}),
+											},
+											tags: srcAccount.vpcs[srcVpc].resource?.vpnGateway.tags.apply(
+												(x) => x ?? {},
+											),
+											connectionProtocol: "IKEv2",
+											localNetworkGateway2: {
+												id: localNetworkGateway.id,
+											},
+											enableBgp: false,
+											sharedKey: meshPsk,
+											connectionType: "IPsec",
+											useLocalAzureIpAddress: false,
+										},
+									);
+							}
 							break;
 						}
 						case AccountType.GcpAccount: {
-							const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
-							const vpnTunnel = new gcp.compute.VPNTunnel(
-								`vpn-tunnel/${srcVpc}->${dstVpc}`,
-								{
-									region: srcAccount.vpcs[srcVpc].vpnGateway.region,
-									name: pulumi.interpolate`${
-										srcAccount.vpcs[srcVpc].vpnGateway.name
-									}-${crypto
-										.createHash("sha256")
-										.update(dstVpc)
-										.digest("hex")
-										.slice(0, 15)}`,
-									peerIp: targetIp,
-									labels: srcAccount.vpcs[srcVpc].publicIp.labels.apply(
-										(x) => x ?? {},
-									),
-									sharedSecret: meshPsk,
-									targetVpnGateway: srcAccount.vpcs[srcVpc].vpnGateway.id,
-									ikeVersion: 2,
-									// These both need to be 0.0.0.0/0 for route-based routing. (As opposed to policy based.)
-									remoteTrafficSelectors: ["0.0.0.0/0"],
-									localTrafficSelectors: ["0.0.0.0/0"],
-								},
-								{
-									dependsOn: [srcAccount.vpcs[srcVpc].forwardingRules.esp],
-									// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
-									ignoreChanges:
-										targetIp === targeter.dummyIp ? ["peerIp"] : [],
-								},
-							);
-							const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
-							const _routes = dstCidrs.map((dstCidr) => {
-								return new gcp.compute.Route(
-									`route/${srcVpc}/${dstVpc}/${dstCidr}`,
+							if (!mockup && isPresent(srcAccount.vpcs[srcVpc].resource)) {
+								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
+								const vpnTunnel = new gcp.compute.VPNTunnel(
+									`vpn-tunnel/${srcVpc}->${dstVpc}`,
 									{
-										name: pulumi.interpolate`${dstAccount} for ${srcVpc} to ${dstVpc} for ${dstCidr}`.apply(
-											(x) =>
-												`a-${crypto
-													.createHash("sha256")
-													.update(x)
-													.digest("hex")
-													.slice(0, 60)}`,
+										region: srcAccount.vpcs[srcVpc].resource?.vpnGateway.region,
+										name: pulumi.interpolate`${
+											srcAccount.vpcs[srcVpc].vpnGateway.name
+										}-${crypto
+											.createHash("sha256")
+											.update(dstVpc)
+											.digest("hex")
+											.slice(0, 15)}`,
+										peerIp: targetIp,
+										labels: srcAccount.vpcs[srcVpc].resource?.publicIp.labels.apply(
+											(x) => x ?? {},
 										),
-										destRange: dstCidr,
-										network: srcAccount.vpcs[srcVpc].network.name,
-										nextHopVpnTunnel: vpnTunnel.id,
+										sharedSecret: meshPsk,
+										targetVpnGateway: srcAccount.vpcs[srcVpc].resource?.vpnGateway.id,
+										ikeVersion: 2,
+										// These both need to be 0.0.0.0/0 for route-based routing. (As opposed to policy based.)
+										remoteTrafficSelectors: ["0.0.0.0/0"],
+										localTrafficSelectors: ["0.0.0.0/0"],
+									},
+									{
+										dependsOn: [srcAccount.vpcs[srcVpc].resource?.forwardingRules.esp],
+										// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
+										ignoreChanges:
+											targetIp === targeter.dummyIp ? ["peerIp"] : [],
 									},
 								);
-							});
+								const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
+								const _routes = dstCidrs.map((dstCidr) => {
+									return new gcp.compute.Route(
+										`route/${srcVpc}/${dstVpc}/${dstCidr}`,
+										{
+											name: pulumi.interpolate`${dstAccount} for ${srcVpc} to ${dstVpc} for ${dstCidr}`.apply(
+												(x) =>
+													`a-${crypto
+														.createHash("sha256")
+														.update(x)
+														.digest("hex")
+														.slice(0, 60)}`,
+											),
+											destRange: dstCidr,
+											network: srcAccount.vpcs[srcVpc].resource?.network.name,
+											nextHopVpnTunnel: vpnTunnel.id,
+										},
+									);
+								});
+							}
 							break;
 						}
 						default: {
