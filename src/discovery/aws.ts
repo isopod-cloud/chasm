@@ -10,7 +10,6 @@ import { AwsVpc, AwsSubnet, AwsAccount } from "../types/new-types";
 import { isPresent } from "../utils";
 
 export async function getVpcs(account: AwsAccount): Promise<AwsVpc[]> {
-	// TODO: Do we still want the user to have the option to find VPCs in a single region?
 
 	const ec2Client = new EC2Client({
 		region: account.region,

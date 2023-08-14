@@ -189,6 +189,8 @@ docker run --rm -ti \
 
 ### Meshing subnets
 
+*** Note ***: You cannot connect two or more AWS subnets across AWS regions.
+
 1. Copy **_only_** the VPCs and subnets to be added to the mesh network from the output, into the VPCs section for it's account in `./mount/config.json`. For example, a complete GCP account with VPCs would look like:
 
 ```json
