@@ -12,6 +12,8 @@ import {
 	AzureAccount,
 	AzureSubnet,
 	AzureVpc,
+	BaseSubnet,
+	BaseVpc,
 	Config,
 	GcpAccount,
 	GcpSubnet,
@@ -86,25 +88,35 @@ export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
 
 type Nullable<T> = T | null;
 
+export interface BaseVpcResource {
+
+}
+
+export interface BaseVpcInfoItem {
+	resource: Nullable<BaseVpcResource>;
+	cidrs: Array<IpV4Cidr>;
+	subnets: Array<BaseSubnet>;
+	vpc: BaseVpc;
+}
+
 // TODO: move this into aws section, exported for testing purposes
-export interface AwsVpcResource {
+export interface AwsVpcResource extends BaseVpcResource {
 	vpnGateway: aws.ec2.VpnGateway;
 }
 
-export interface AwsVpcInfoItem {
+export interface AwsVpcInfoItem extends BaseVpcInfoItem {
 	resource: Nullable<AwsVpcResource>;
-	cidrs: Array<IpV4Cidr>;
 	subnets: Array<AwsSubnet>;
 	vpc: AwsVpc;
 }
 
-export interface AwsVpcInfo {
+export interface VpcInfo {
 	type: AccountType;
 	mockup: boolean;
-	vpcs: Record<string, AwsVpcInfoItem>;
+	vpcs: Record<string, BaseVpcInfoItem>;
 }
 
-export const buildForAwsAccount = (account: AwsAccount, mockup: boolean): AwsVpcInfo => {
+export const buildForAwsAccount = (account: AwsAccount, mockup: boolean = false): VpcInfo => {
 	const vpcArray: Array<[string, AwsVpcInfoItem]> = account.vpcs?.map((vpc) => {
 		const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 		if (mockup) {
@@ -128,33 +140,26 @@ export const buildForAwsAccount = (account: AwsAccount, mockup: boolean): AwsVpc
 	};
 };
 
-export interface AzureVpcResource {
+export interface AzureVpcResource extends BaseVpcResource {
 	gatewaySubnet: pulumi.Output<azure.network.GetSubnetResult>;
 	publicIp: azure.network.PublicIPAddress;
 	vpnGateway: azure.network.VirtualNetworkGateway;
 }
 
-export interface AzureVpcInfoItem {
+export interface AzureVpcInfoItem extends BaseVpcInfoItem {
 	resource: Nullable<AzureVpcResource>;
 	vpcName: string;
 	resourceGroupNameTruncated: string;
 	resourceGroupName: string;
-	cidrs: Array<IpV4Cidr>;
 	subnets: Array<AzureSubnet>;
 	vpc: AzureVpc;
-}
-
-export interface AzureVpcInfo {
-	type: AccountType;
-	mockup: boolean;
-	vpcs: Record<string, AzureVpcInfoItem>;
 }
 
 // TODO: move this into azure section, exported for testing purposes
 export const buildForAzureAccount = (
 	account: AzureAccount,
-	mockup: boolean,
-): AzureVpcInfo => {
+	mockup: boolean = false,
+): VpcInfo => {
 	const vpcArray: Array<[string, AzureVpcInfoItem]> =
 		account.vpcs?.map((vpc) => {
 			const vpcName = vpc.id.split("/").slice(-1)[0];
@@ -245,30 +250,25 @@ export interface GcpForwardingRules {
 	ipsecNat: gcp.compute.ForwardingRule;
 }
 
-export interface GcpVpcResource {
+export interface GcpVpcResource extends BaseVpcResource {
 	network: pulumi.Output<gcp.compute.GetNetworkResult>;
 	vpnGateway: gcp.compute.VPNGateway;
 	publicIp: gcp.compute.Address;
 	forwardingRules: GcpForwardingRules;
 }
 
-export interface GcpVpcInfoItem {
+export interface GcpVpcInfoItem extends BaseVpcInfoItem {
 	resource: Nullable<GcpVpcResource>;
 	account: GcpAccount;
 	region: string;
 	vpnName: string;
-	cidrs: Array<IpV4Cidr>;
+	subnets: Array<GcpSubnet>,
 	vpc: GcpVpc;
 }
 
-export interface GcpVpcInfo {
-	type: AccountType;
-	mockup: boolean;
-	vpcs: Record<string, GcpVpcInfoItem>;
-}
 
 // TODO: move this into gcp section, exported for testing purposes
-export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
+export const buildForGcpAccount = (account: GcpAccount, mockup: boolean = false) : VpcInfo => {
 	const vpcArray: Array<[string, GcpVpcInfoItem]> = account.vpcs?.map((vpc) => {
 		const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 		const region = vpc.subnets[0].region;
@@ -281,6 +281,7 @@ export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 					region,
 					vpnName,
 					cidrs,
+					subnets: vpc.subnets,
 					vpc,
 				}];
 		} else {
@@ -289,19 +290,19 @@ export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 			});
 			const vpnGateway = new gcp.compute.VPNGateway(`vpn-gateway/${vpc.id}`, {
 				network: network.name,
-				name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}`,
+				name: pulumi.interpolate`a-${vpnName}`,
 				region: vpc.subnets[0].region,
 				project: vpc.projectName,
 			});
 			const publicIp = new gcp.compute.Address(`public-ip/${vpc.id}`, {
-				name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}`,
+				name: pulumi.interpolate`a-${vpnName}`,
 				project: vpc.projectName,
 				region: vpc.subnets[0].region,
 				labels: vpc.tags,
 			});
 			const forwardingRules = {
 				esp: new gcp.compute.ForwardingRule(`forwarding-rule/${vpc.id}/esp`, {
-					name: pulumi.interpolate`a-${vpc.id.split("/").slice(-1)[0]}-esp`,
+					name: pulumi.interpolate`a-${vpnName}-esp`,
 					ipAddress: publicIp.address,
 					ipProtocol: "ESP",
 					region: vpc.subnets[0].region,
@@ -311,7 +312,7 @@ export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 					`forwarding-rule/${vpc.id}/ipsec`,
 					{
 						name: pulumi.interpolate`a-${
-							vpc.id.split("/").slice(-1)[0]
+							vpnName
 						}-ipsec`,
 						ipAddress: publicIp.address,
 						ipProtocol: "UDP",
@@ -324,7 +325,7 @@ export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 					`forwarding-rule/${vpc.id}/ipsecNat`,
 					{
 						name: pulumi.interpolate`a-${
-							vpc.id.split("/").slice(-1)[0]
+							vpnName
 						}-ipsecnat`,
 						ipAddress: publicIp.address,
 						ipProtocol: "UDP",
@@ -347,6 +348,7 @@ export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 					region,
 					vpnName,
 					cidrs,
+					subnets: vpc.subnets,
 					vpc,
 				},
 			];
@@ -359,14 +361,13 @@ export const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 	};
 };
 
-export async function planMeshInternal(
+async function planMeshInternal(
 	meshArgs: ToSynthesize,
 	config: Config,
 	phase1Targeter:
 		| Record<string, IpV4Address | undefined>
 		| undefined = undefined,
-	mockup: boolean = false,
-): Promise<Array<readonly [string, IpV4Address]>> {
+): Promise<Array<readonly [string, pulumi.Output<IpV4Address>]>> {
 	const meshPsk = pulumi.secret(meshArgs.psk);
 	const targeter = new Targeter<pulumi.Output<IpV4Address>>(
 		pulumi.output(IpV4Address.parse("1.1.1.1")),
@@ -383,13 +384,13 @@ export async function planMeshInternal(
 	const phase1Result = config.map((account) => {
 		switch (account.type) {
 			case "AwsAccount": {
-				return buildForAwsAccount(account, mockup);
+				return buildForAwsAccount(account);
 			}
 			case "AzureAccount": {
-				return buildForAzureAccount(account, mockup);
+				return buildForAzureAccount(account);
 			}
 			case "GcpAccount": {
-				return buildForGcpAccount(account, mockup);
+				return buildForGcpAccount(account);
 			}
 			default: {
 				void (account satisfies never);
@@ -413,20 +414,14 @@ export async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							if (!mockup && isPresent(dstVpc.resource)) { 
+							const dstVpcResource = (dstVpc as AzureVpcInfoItem).resource;
+							if (isPresent(dstVpcResource)) { 
 								targeter.set(
 									`${srcVpc}->${dstVpcId}`,
-									dstVpc.resource?.publicIp.ipAddress.apply((x) => x!),
+									dstVpcResource.publicIp.ipAddress.apply((x) => x!),
 								);
-							} else if (mockup) {
-								const pieces = dstVpc.cidr.split("/");
-								if (pieces.length == 0) {
-									throw new Error(`Bad vpc cidr: ${dstVpc.cidrs}`);
-								}
-								targeter.set(
-									`${srcVpc}->${dstVpcId}`,
-									pieces[0]
-								);
+							} else {
+								throw new Error(`no resource for Azure vpc id ${dstVpcId}`);
 							}
 						}
 						break;
@@ -436,17 +431,11 @@ export async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							if (!mockup && isPresent(dstVpc.resource)) {
-								targeter.set(`${srcVpc}->${dstVpcId}`, dstVpc.resource?.publicIp.address);
-							} else if (mockup) {
-								const pieces = dstVpc.cidr.split("/");
-								if (pieces.length == 0) {
-									throw new Error(`Bad vpc cidr: ${dstVpc.cidrs}`);
-								}
-								targeter.set(
-									`${srcVpc}->${dstVpcId}`,
-									pieces[0]
-								);
+							const dstVpcResource = (dstVpc as GcpVpcInfoItem).resource;
+							if (isPresent(dstVpcResource)) {
+								targeter.set(`${srcVpc}->${dstVpcId}`, dstVpcResource.publicIp.address);
+							} else {
+								throw new Error(`no resource for GCP vpc id ${dstVpcId}`);
 							}
 						}
 						break;
@@ -511,8 +500,9 @@ export async function planMeshInternal(
 
 					switch (srcAccount.type) {
 						case AccountType.AwsAccount: {
-							if (!mockup && isPresent(srcAccount.vpcs[srcVpc].resource)) {
-								const srcVpnGateway = srcAccount.vpcs[srcVpc].resource?.vpnGateway!;
+							const srcResource = (srcAccount.vpcs[srcVpc] as AwsVpcInfoItem).resource;
+							if (isPresent(srcResource)) {
+								const srcVpnGateway = srcResource.vpnGateway;
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
 								const remoteGateway = new aws.ec2.CustomerGateway(
 									`customer-gateway/${srcVpc}->${dstVpc}`,
@@ -632,33 +622,26 @@ export async function planMeshInternal(
 										return [cidr, { vpnRoute, routes }] as const;
 									}),
 								);
-							} else if (mockup) {
-								// For mockups, pretend the IP part of the singular cidr field is the tunnel address.
-								// When we don't have actual AWS resources, we gotta improvise...
-								const pieces = srcAccount.vpcs[srcVpc].vpc.cidr.split("/");
-								if (pieces.length == 0) {
-									throw new Error(`Bad vpc cidr: ${srcAccount.vpcs[srcVpc].vpc.cidr}`);
-								}
-								targeter.set(
-									`${dstVpc}->${srcVpc}`,
-									pieces[0],
-								);
+							} else {
+								throw new Error(`no resource for AWS vpc id ${srcVpc}`);
 							}
 							// TODO: check for overlaps in route tables
 							break;
 						}
 						case AccountType.AzureAccount: {
-							if (!mockup && isPresent(srcAccount.vpcs[srcVpc].resource)) {
+							const srcVpcAzure = srcAccount.vpcs[srcVpc] as AzureVpcInfoItem;
+							const srcResource = srcVpcAzure.resource;
+							if (isPresent(srcResource)) {
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
 								const dstCidrs = dstAccount.vpcs[dstVpc].cidrs;
 								const localNetworkGateway = new azure.network.LocalNetworkGateway(
 									`local-network-gateway/${srcVpc}->${dstVpc}`,
 									{
-										resourceGroupName: srcAccount.vpcs[srcVpc].resource?.resourceGroupName
+										resourceGroupName: srcVpcAzure.resourceGroupName
 											.split("/")
 											.slice(-1)[0],
 										localNetworkGatewayName:
-											pulumi.interpolate`${srcAccount.vpcs[srcVpc].resource?.vpnGateway.name}-${dstVpc}`.apply(
+											pulumi.interpolate`${srcResource.vpnGateway.name}-${dstVpc}`.apply(
 												(x) => {
 													return crypto
 														.createHash("sha256")
@@ -667,7 +650,7 @@ export async function planMeshInternal(
 												},
 											),
 										gatewayIpAddress: targetIp,
-										tags: srcAccount.vpcs[srcVpc].resource?.vpnGateway.tags.apply(
+										tags: srcResource.vpnGateway.tags.apply(
 											(x) => x ?? {},
 										),
 										localNetworkAddressSpace: {
@@ -685,7 +668,7 @@ export async function planMeshInternal(
 									new azure.network.VirtualNetworkGatewayConnection(
 										`vpn-connection/${srcVpc}->${dstVpc}`,
 										{
-											resourceGroupName: srcAccount.vpcs[srcVpc].resource?.resourceGroupName
+											resourceGroupName: srcVpcAzure.resourceGroupName
 												.split("/")
 												.slice(-1)[0],
 											virtualNetworkGatewayConnectionName:
@@ -696,12 +679,12 @@ export async function planMeshInternal(
 														.digest("hex");
 												}),
 											virtualNetworkGateway1: {
-												id: srcAccount.vpcs[srcVpc].resource?.vpnGateway.id.apply((x) => {
+												id: srcResource.vpnGateway.id.apply((x) => {
 													console.log("vpn gateway id: ", x);
 													return x;
 												}),
 											},
-											tags: srcAccount.vpcs[srcVpc].resource?.vpnGateway.tags.apply(
+											tags: srcResource.vpnGateway.tags.apply(
 												(x) => x ?? {},
 											),
 											connectionProtocol: "IKEv2",
@@ -714,36 +697,40 @@ export async function planMeshInternal(
 											useLocalAzureIpAddress: false,
 										},
 									);
+							} else {
+								throw new Error(`no resource for Azure vpc id ${srcVpc}`);
 							}
 							break;
 						}
 						case AccountType.GcpAccount: {
-							if (!mockup && isPresent(srcAccount.vpcs[srcVpc].resource)) {
+							const srcVpcGcp = srcAccount.vpcs[srcVpc] as GcpVpcInfoItem;
+							const srcResource = srcVpcGcp.resource;
+							if (isPresent(srcResource)) {
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
 								const vpnTunnel = new gcp.compute.VPNTunnel(
 									`vpn-tunnel/${srcVpc}->${dstVpc}`,
 									{
-										region: srcAccount.vpcs[srcVpc].resource?.vpnGateway.region,
+										region: srcResource.vpnGateway.region,
 										name: pulumi.interpolate`${
-											srcAccount.vpcs[srcVpc].vpnGateway.name
+											srcResource.vpnGateway.name
 										}-${crypto
 											.createHash("sha256")
 											.update(dstVpc)
 											.digest("hex")
 											.slice(0, 15)}`,
 										peerIp: targetIp,
-										labels: srcAccount.vpcs[srcVpc].resource?.publicIp.labels.apply(
+										labels: srcResource.publicIp.labels.apply(
 											(x) => x ?? {},
 										),
 										sharedSecret: meshPsk,
-										targetVpnGateway: srcAccount.vpcs[srcVpc].resource?.vpnGateway.id,
+										targetVpnGateway: srcResource.vpnGateway.id,
 										ikeVersion: 2,
 										// These both need to be 0.0.0.0/0 for route-based routing. (As opposed to policy based.)
 										remoteTrafficSelectors: ["0.0.0.0/0"],
 										localTrafficSelectors: ["0.0.0.0/0"],
 									},
 									{
-										dependsOn: [srcAccount.vpcs[srcVpc].resource?.forwardingRules.esp],
+										dependsOn: [srcResource.forwardingRules.esp],
 										// This `ignoreChanges` is needed so that we don't mess with the IP address on update to the mesh.
 										ignoreChanges:
 											targetIp === targeter.dummyIp ? ["peerIp"] : [],
@@ -763,11 +750,13 @@ export async function planMeshInternal(
 														.slice(0, 60)}`,
 											),
 											destRange: dstCidr,
-											network: srcAccount.vpcs[srcVpc].resource?.network.name,
+											network: srcResource.network.name,
 											nextHopVpnTunnel: vpnTunnel.id,
 										},
 									);
 								});
+							} else {
+								throw new Error(`no resource for GCP vpc id ${srcVpc}`);
 							}
 							break;
 						}
@@ -791,18 +780,15 @@ export async function planMeshInternal(
 	);
 }
 
-// Exported for testing purposes
-export function planMesh(
+function planMesh(
 	meshArgs: ToSynthesize,
 	config: Config,
 	phase1Targeter:
 		| Record<string, IpV4Address | undefined>
 		| undefined = undefined,
-	mockup: boolean = false,
 ): () => Promise<Array<readonly [IpV4Address, pulumi.Output<IpV4Address>]>> {
-	// : Promise<(readonly [IpV4Address, pulumi.Output<IpV4Address>])[]>
 	return async () => {
-		return await planMeshInternal(meshArgs, config, phase1Targeter, mockup);
+		return await planMeshInternal(meshArgs, config, phase1Targeter);
 	};
 }
 
