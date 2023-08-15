@@ -86,7 +86,7 @@ export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
 	}
 }
 
-type Nullable<T> = T | null;
+export type Nullable<T> = T | null;
 
 export interface BaseVpcResource {}
 
@@ -114,7 +114,7 @@ export interface VpcInfo {
 	vpcs: Record<string, BaseVpcInfoItem>;
 }
 
-export const buildForAwsAccount = (
+const buildForAwsAccount = (
 	account: AwsAccount,
 	mockup: boolean = false,
 ): VpcInfo => {
@@ -160,8 +160,8 @@ export interface AzureVpcInfoItem extends BaseVpcInfoItem {
 	vpc: AzureVpc;
 }
 
-// TODO: move this into azure section, exported for testing purposes
-export const buildForAzureAccount = (
+// TODO: move this into azure section
+const buildForAzureAccount = (
 	account: AzureAccount,
 	mockup: boolean = false,
 ): VpcInfo => {
@@ -283,8 +283,8 @@ export interface GcpVpcInfoItem extends BaseVpcInfoItem {
 	vpc: GcpVpc;
 }
 
-// TODO: move this into gcp section, exported for testing purposes
-export const buildForGcpAccount = (
+// TODO: move this into gcp section
+const buildForGcpAccount = (
 	account: GcpAccount,
 	mockup: boolean = false,
 ): VpcInfo => {

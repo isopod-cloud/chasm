@@ -495,7 +495,7 @@ describe("VpcInfo", () => {
 	beforeEach(() => {});
 
 	it("buildPhase1Result builds expected VpcInfo", () => {
-		const result = buildPhase1Result(config);
+		const result = buildPhase1Result(config, /* mockup = */ true);
 		expect(result).toMatchObject(expectedVpcInfos);
 	});
 });
