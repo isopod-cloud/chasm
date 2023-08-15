@@ -441,7 +441,6 @@ async function planMeshInternal(
 						break;
 					}
 					default: {
-						void (dstAccount satisfies never);
 						throw new Error(`Unreachable code: unknown account type`);
 					}
 				}
@@ -452,34 +451,9 @@ async function planMeshInternal(
 	/* We need to get rid of the enum for phase1 result to fix the typing system*/
 	const allCidrs: string[] = [];
 	for (const acct of phase1Result) {
-		switch (acct.type) {
-			case AccountType.AwsAccount: {
-				for (const [_key, vpc] of Object.entries(acct.vpcs)) {
-					for (const cidr of vpc.cidrs) {
-						allCidrs.push(cidr);
-					}
-				}
-				break;
-			}
-			case AccountType.AzureAccount: {
-				for (const [_key, vpc] of Object.entries(acct.vpcs)) {
-					for (const cidr of vpc.cidrs) {
-						allCidrs.push(cidr);
-					}
-				}
-				break;
-			}
-			case AccountType.GcpAccount: {
-				for (const [_key, vpc] of Object.entries(acct.vpcs)) {
-					for (const cidr of vpc.cidrs) {
-						allCidrs.push(cidr);
-					}
-				}
-				break;
-			}
-			default: {
-				void (acct satisfies never);
-				break;
+		for (const [_key, vpc] of Object.entries(acct.vpcs)) {
+			for (const cidr of vpc.cidrs) {
+				allCidrs.push(cidr);
 			}
 		}
 	}
@@ -761,7 +735,6 @@ async function planMeshInternal(
 							break;
 						}
 						default: {
-							void (srcAccount satisfies never);
 							throw new Error("unknown account type");
 						}
 					}
