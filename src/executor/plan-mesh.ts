@@ -168,23 +168,6 @@ const gcpMakeFirewallPolicy = (
 			provider,
 		},
 	);
-	// TODO: Do we want to stitch the new firewall into the VPC immediately?
-	// new gcp.compute.NetworkFirewallPolicyAssociation(
-	// 	`firewall-association/${vpc.id}`,
-	// 	{
-	// 		project: vpc.projectName,
-	// 		name: pulumi.interpolate`connectto-${
-	// 			vpc.id.split("/").slice(-1)[0]
-	// 		}`,
-
-	// 		firewallPolicy: policy.name,
-	// 		attachmentTarget: vpcUrl,
-	// 	},
-	// 	{
-	// 		provider,
-	// 		dependsOn: [policy, ingressRule, egressRule],
-	// 	},
-	// );
 };
 
 
