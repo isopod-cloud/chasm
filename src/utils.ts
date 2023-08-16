@@ -13,6 +13,9 @@ import {
 } from "./config";
 import { CloudAccount} from "./types/new-types"
 
+// Simple definition for nullable object
+export type Nullable<T> = T | null;
+
 // Useful for filters
 export const isPresent = <T>(v: T): v is Exclude<T, null | undefined> =>
 	v !== undefined && v !== null;

@@ -3,7 +3,7 @@ import * as azure from "@pulumi/azure-native";
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
 import * as crypto from "crypto";
-import { isPresent, overlappingCidrsExist } from "../utils";
+import { Nullable, isPresent, overlappingCidrsExist } from "../utils";
 
 import {
 	AwsAccount,
@@ -86,10 +86,10 @@ export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
 	}
 }
 
-export type Nullable<T> = T | null;
-
+// TODO: move into types section, consider refactoring as a class or zod type. exported for testing
 export interface BaseVpcResource {}
 
+// TODO: move into types section, consider refactoring as a class or zod type. exported for testing
 export interface BaseVpcInfoItem {
 	resource: Nullable<BaseVpcResource>;
 	cidrs: Array<IpV4Cidr>;
@@ -97,26 +97,30 @@ export interface BaseVpcInfoItem {
 	vpc: BaseVpc;
 }
 
-// TODO: move this into aws section, exported for testing purposes
-export interface AwsVpcResource extends BaseVpcResource {
-	vpnGateway: aws.ec2.VpnGateway;
-}
-
-export interface AwsVpcInfoItem extends BaseVpcInfoItem {
-	resource: Nullable<AwsVpcResource>;
-	subnets: Array<AwsSubnet>;
-	vpc: AwsVpc;
-}
-
+// TODO: move into types section, consider refactoring as a class or zod type. exported for testing
 export interface VpcInfo {
 	type: AccountType;
 	mockup: boolean;
 	vpcs: Record<string, BaseVpcInfoItem>;
 }
 
+// TODO: move into aws section, consider refactoring as a class or zod type. exported for testing
+export interface AwsVpcResource extends BaseVpcResource {
+	vpnGateway: aws.ec2.VpnGateway;
+}
+
+// TODO: move into aws section, consider refactoring as a class or zod type. exported for testing
+export interface AwsVpcInfoItem extends BaseVpcInfoItem {
+	resource: Nullable<AwsVpcResource>;
+	subnets: Array<AwsSubnet>;
+	vpc: AwsVpc;
+}
+
+
+// TODO: move this into aws section
 const buildForAwsAccount = (
 	account: AwsAccount,
-	mockup: boolean = false,
+	mockup: boolean,
 ): VpcInfo => {
 	const vpcArray: Array<[string, AwsVpcInfoItem]> =
 		account.vpcs?.map((vpc) => {
@@ -145,12 +149,14 @@ const buildForAwsAccount = (
 	};
 };
 
+// TODO: move into azure section, consider refactoring as a class or zod type. exported for testing
 export interface AzureVpcResource extends BaseVpcResource {
 	gatewaySubnet: pulumi.Output<azure.network.GetSubnetResult>;
 	publicIp: azure.network.PublicIPAddress;
 	vpnGateway: azure.network.VirtualNetworkGateway;
 }
 
+// TODO: move into azure section, consider refactoring as a class or zod type. exported for testing
 export interface AzureVpcInfoItem extends BaseVpcInfoItem {
 	resource: Nullable<AzureVpcResource>;
 	vpcName: string;
@@ -163,7 +169,7 @@ export interface AzureVpcInfoItem extends BaseVpcInfoItem {
 // TODO: move this into azure section
 const buildForAzureAccount = (
 	account: AzureAccount,
-	mockup: boolean = false,
+	mockup: boolean,
 ): VpcInfo => {
 	const vpcArray: Array<[string, AzureVpcInfoItem]> =
 		account.vpcs?.map((vpc) => {
@@ -262,12 +268,14 @@ const buildForAzureAccount = (
 	};
 };
 
+// TODO: move into gcp section, consider refactoring as a class or zod type. exported for testing
 export interface GcpForwardingRules {
 	esp: gcp.compute.ForwardingRule;
 	ipsec: gcp.compute.ForwardingRule;
 	ipsecNat: gcp.compute.ForwardingRule;
 }
 
+// TODO: move into gcp section, consider refactoring as a class or zod type. exported for testing
 export interface GcpVpcResource extends BaseVpcResource {
 	network: pulumi.Output<gcp.compute.GetNetworkResult>;
 	vpnGateway: gcp.compute.VPNGateway;
@@ -275,6 +283,7 @@ export interface GcpVpcResource extends BaseVpcResource {
 	forwardingRules: GcpForwardingRules;
 }
 
+// TODO: move into gcp section, consider refactoring as a class or zod type. exported for testing
 export interface GcpVpcInfoItem extends BaseVpcInfoItem {
 	resource: Nullable<GcpVpcResource>;
 	region: string;
@@ -286,7 +295,7 @@ export interface GcpVpcInfoItem extends BaseVpcInfoItem {
 // TODO: move this into gcp section
 const buildForGcpAccount = (
 	account: GcpAccount,
-	mockup: boolean = false,
+	mockup: boolean,
 ): VpcInfo => {
 	const vpcArray: Array<[string, GcpVpcInfoItem]> =
 		account.vpcs?.map((vpc) => {
@@ -377,6 +386,7 @@ const buildForGcpAccount = (
 	};
 };
 
+// exported for testing
 export function buildPhase1Result(
 	config: Config,
 	mockup: boolean = false,
