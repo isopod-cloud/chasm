@@ -87,42 +87,41 @@ export class Targeter<Output extends pulumi.Output<IpV4Address> | IpV4Address> {
 }
 
 // TODO: move into types section, consider refactoring as a class or zod type. exported for testing
-export interface BaseVpcResource {}
+export interface BasePhaseOneResource {}
 
 // TODO: move into types section, consider refactoring as a class or zod type. exported for testing
-export interface BaseVpcInfoItem {
-	resource: Nullable<BaseVpcResource>;
+export interface BasePhaseOneVpc {
+	resource: Nullable<BasePhaseOneResource>;
 	cidrs: Array<IpV4Cidr>;
 	subnets: Array<BaseSubnet>;
 	vpc: BaseVpc;
 }
 
 // TODO: move into types section, consider refactoring as a class or zod type. exported for testing
-export interface VpcInfo {
+export interface PhaseOneAccount {
 	type: AccountType;
 	mockup: boolean;
-	vpcs: Record<string, BaseVpcInfoItem>;
+	vpcs: Record<string, BasePhaseOneVpc>;
 }
 
 // TODO: move into aws section, consider refactoring as a class or zod type. exported for testing
-export interface AwsVpcResource extends BaseVpcResource {
+export interface AwsPhaseOneResource extends BasePhaseOneResource {
 	vpnGateway: aws.ec2.VpnGateway;
 }
 
 // TODO: move into aws section, consider refactoring as a class or zod type. exported for testing
-export interface AwsVpcInfoItem extends BaseVpcInfoItem {
-	resource: Nullable<AwsVpcResource>;
+export interface AwsPhaseOneVpc extends BasePhaseOneVpc {
+	resource: Nullable<AwsPhaseOneResource>;
 	subnets: Array<AwsSubnet>;
 	vpc: AwsVpc;
 }
-
 
 // TODO: move this into aws section
 const buildForAwsAccount = (
 	account: AwsAccount,
 	mockup: boolean,
-): VpcInfo => {
-	const vpcArray: Array<[string, AwsVpcInfoItem]> =
+): PhaseOneAccount => {
+	const vpcArray: Array<[string, AwsPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 			if (mockup) {
@@ -150,15 +149,15 @@ const buildForAwsAccount = (
 };
 
 // TODO: move into azure section, consider refactoring as a class or zod type. exported for testing
-export interface AzureVpcResource extends BaseVpcResource {
+export interface AzurePhaseOneResource extends BasePhaseOneResource {
 	gatewaySubnet: pulumi.Output<azure.network.GetSubnetResult>;
 	publicIp: azure.network.PublicIPAddress;
 	vpnGateway: azure.network.VirtualNetworkGateway;
 }
 
 // TODO: move into azure section, consider refactoring as a class or zod type. exported for testing
-export interface AzureVpcInfoItem extends BaseVpcInfoItem {
-	resource: Nullable<AzureVpcResource>;
+export interface AzurePhaseOneVpc extends BasePhaseOneVpc {
+	resource: Nullable<AzurePhaseOneResource>;
 	vpcName: string;
 	resourceGroupNameTruncated: string;
 	resourceGroupName: string;
@@ -170,8 +169,8 @@ export interface AzureVpcInfoItem extends BaseVpcInfoItem {
 const buildForAzureAccount = (
 	account: AzureAccount,
 	mockup: boolean,
-): VpcInfo => {
-	const vpcArray: Array<[string, AzureVpcInfoItem]> =
+): PhaseOneAccount => {
+	const vpcArray: Array<[string, AzurePhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const vpcName = vpc.id.split("/").slice(-1)[0];
 			const resourceGroupNameTruncated = vpc.resourceGroupName
@@ -276,7 +275,7 @@ export interface GcpForwardingRules {
 }
 
 // TODO: move into gcp section, consider refactoring as a class or zod type. exported for testing
-export interface GcpVpcResource extends BaseVpcResource {
+export interface GcpPhaseOneResource extends BasePhaseOneResource {
 	network: pulumi.Output<gcp.compute.GetNetworkResult>;
 	vpnGateway: gcp.compute.VPNGateway;
 	publicIp: gcp.compute.Address;
@@ -284,8 +283,8 @@ export interface GcpVpcResource extends BaseVpcResource {
 }
 
 // TODO: move into gcp section, consider refactoring as a class or zod type. exported for testing
-export interface GcpVpcInfoItem extends BaseVpcInfoItem {
-	resource: Nullable<GcpVpcResource>;
+export interface GcpPhaseOneVpc extends BasePhaseOneVpc {
+	resource: Nullable<GcpPhaseOneResource>;
 	region: string;
 	vpnName: string;
 	subnets: Array<GcpSubnet>;
@@ -296,8 +295,8 @@ export interface GcpVpcInfoItem extends BaseVpcInfoItem {
 const buildForGcpAccount = (
 	account: GcpAccount,
 	mockup: boolean,
-): VpcInfo => {
-	const vpcArray: Array<[string, GcpVpcInfoItem]> =
+): PhaseOneAccount => {
+	const vpcArray: Array<[string, GcpPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 			const region = vpc.subnets[0].region;
@@ -390,7 +389,7 @@ const buildForGcpAccount = (
 export function buildPhase1Result(
 	config: Config,
 	mockup: boolean = false,
-): Array<VpcInfo> {
+): Array<PhaseOneAccount> {
 	return config.map((account) => {
 		switch (account.type) {
 			case "AwsAccount": {
@@ -447,11 +446,11 @@ async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							const dstVpcResource = (dstVpc as AzureVpcInfoItem).resource;
-							if (isPresent(dstVpcResource)) {
+							const dstPhaseOneResource = (dstVpc as AzurePhaseOneVpc).resource;
+							if (isPresent(dstPhaseOneResource)) {
 								targeter.set(
 									`${srcVpc}->${dstVpcId}`,
-									dstVpcResource.publicIp.ipAddress.apply((x) => x!),
+									dstPhaseOneResource.publicIp.ipAddress.apply((x) => x!),
 								);
 							} else {
 								throw new Error(`no resource for Azure vpc id ${dstVpcId}`);
@@ -464,11 +463,11 @@ async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							const dstVpcResource = (dstVpc as GcpVpcInfoItem).resource;
-							if (isPresent(dstVpcResource)) {
+							const dstPhaseOneResource = (dstVpc as GcpPhaseOneVpc).resource;
+							if (isPresent(dstPhaseOneResource)) {
 								targeter.set(
 									`${srcVpc}->${dstVpcId}`,
-									dstVpcResource.publicIp.address,
+									dstPhaseOneResource.publicIp.address,
 								);
 							} else {
 								throw new Error(`no resource for GCP vpc id ${dstVpcId}`);
@@ -510,7 +509,7 @@ async function planMeshInternal(
 
 					switch (srcAccount.type) {
 						case AccountType.AwsAccount: {
-							const srcResource = (srcAccount.vpcs[srcVpc] as AwsVpcInfoItem)
+							const srcResource = (srcAccount.vpcs[srcVpc] as AwsPhaseOneVpc)
 								.resource;
 							if (isPresent(srcResource)) {
 								const srcVpnGateway = srcResource.vpnGateway;
@@ -637,7 +636,7 @@ async function planMeshInternal(
 							break;
 						}
 						case AccountType.AzureAccount: {
-							const srcVpcAzure = srcAccount.vpcs[srcVpc] as AzureVpcInfoItem;
+							const srcVpcAzure = srcAccount.vpcs[srcVpc] as AzurePhaseOneVpc;
 							const srcResource = srcVpcAzure.resource;
 							if (isPresent(srcResource)) {
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
@@ -710,7 +709,7 @@ async function planMeshInternal(
 							break;
 						}
 						case AccountType.GcpAccount: {
-							const srcVpcGcp = srcAccount.vpcs[srcVpc] as GcpVpcInfoItem;
+							const srcVpcGcp = srcAccount.vpcs[srcVpc] as GcpPhaseOneVpc;
 							const srcResource = srcVpcGcp.resource;
 							if (isPresent(srcResource)) {
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);

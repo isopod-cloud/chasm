@@ -1,10 +1,10 @@
 import {
 	AccountType,
-	AwsVpcInfoItem,
-	AzureVpcInfoItem,
-	GcpVpcInfoItem,
+	AwsPhaseOneVpc,
+	AzurePhaseOneVpc,
+	GcpPhaseOneVpc,
 	Targeter,
-	VpcInfo,
+	PhaseOneAccount,
 	buildPhase1Result,
 } from "./fixture";
 
@@ -126,7 +126,7 @@ describe("Targeter", () => {
 	});
 });
 
-describe("VpcInfo", () => {
+describe("PhaseOneAccount", () => {
 	const config: Config = [
 		{
 			type: "AwsAccount",
@@ -257,7 +257,7 @@ describe("VpcInfo", () => {
 		},
 	];
 
-	const awsVpcInfoItem1: AwsVpcInfoItem = {
+	const awsPhaseOneVpc1: AwsPhaseOneVpc = {
 		resource: null,
 		cidrs: [
 			"172.1.1.0/24",
@@ -342,7 +342,7 @@ describe("VpcInfo", () => {
 		}),
 	};
 
-	const awsVpcInfoItem2: AwsVpcInfoItem = {
+	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
 		resource: null,
 		cidrs: ["172.2.1.0/24", "172.2.2.0/24", "172.2.3.0/24"],
 		subnets: [
@@ -390,7 +390,7 @@ describe("VpcInfo", () => {
 		},
 	};
 
-	const gcpVpcInfoItem: GcpVpcInfoItem = {
+	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
 		resource: null,
 		region: "us-west4",
 		vpnName: "12345678901234567",
@@ -422,7 +422,7 @@ describe("VpcInfo", () => {
 		}),
 	};
 
-	const azureVpcInfoItem: AzureVpcInfoItem = {
+	const azurePhaseOneVpc: AzurePhaseOneVpc = {
 		resource: null,
 		vpcName: "test-resource-rg-vnet-12345678",
 		resourceGroupNameTruncated: "test-resource-rg",
@@ -465,20 +465,20 @@ describe("VpcInfo", () => {
 		},
 	};
 
-	const expectedVpcInfos: Array<VpcInfo> = [
+	const expectedPhaseOneAccounts: Array<PhaseOneAccount> = [
 		{
 			type: AccountType.AwsAccount,
 			mockup: true,
 			vpcs: {
-				"vpc-12345678": awsVpcInfoItem1,
-				"vpc-87654321": awsVpcInfoItem2,
+				"vpc-12345678": awsPhaseOneVpc1,
+				"vpc-87654321": awsPhaseOneVpc2,
 			},
 		},
 		{
 			type: AccountType.GcpAccount,
 			mockup: true,
 			vpcs: {
-				"12345678901234567": gcpVpcInfoItem,
+				"12345678901234567": gcpPhaseOneVpc,
 			},
 		},
 
@@ -487,15 +487,15 @@ describe("VpcInfo", () => {
 			mockup: true,
 			vpcs: {
 				"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
-					azureVpcInfoItem,
+					azurePhaseOneVpc,
 			},
 		},
 	];
 
 	beforeEach(() => {});
 
-	it("buildPhase1Result builds expected VpcInfo", () => {
+	it("buildPhase1Result builds expected PhaseOneAccount", () => {
 		const result = buildPhase1Result(config, /* mockup = */ true);
-		expect(result).toMatchObject(expectedVpcInfos);
+		expect(result).toMatchObject(expectedPhaseOneAccounts);
 	});
 });
