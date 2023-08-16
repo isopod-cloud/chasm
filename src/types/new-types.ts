@@ -94,7 +94,7 @@ export type BaseVpc = z.infer<typeof BaseVpc>;
 
 export const AwsVpc = BaseVpc.extend({
 	type: z.literal("AwsVpc"),
-	region: z.string().min(1), // Redundant since we have region in account? Think it makes sense to have this here since we're searching VPCs in all regions now
+	region: z.string().min(1),
 	cidr: IpV4Cidr,
 	subnets: z.array(AwsSubnet),
 });
