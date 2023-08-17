@@ -2,16 +2,15 @@ import { ReadonlyDeep } from "type-fest";
 import { homedir } from "os";
 import * as path from "path";
 import * as fs from "fs";
-import * as fsPromise from "fs/promises"
+import * as fsPromise from "fs/promises";
 import * as ipa from "ip-address";
 
 import * as pulumi from "@pulumi/pulumi";
-import {
-	FromConfigFile,
-	FromPackageFile,
-	ToSynthesize
-} from "./config";
-import { CloudAccount} from "./types/new-types"
+import { FromConfigFile, FromPackageFile, ToSynthesize } from "./config";
+import { CloudAccount } from "./types/new-types";
+
+// Simple definition for nullable object
+export type Nullable<T> = T | null;
 
 // Useful for filters
 export const isPresent = <T>(v: T): v is Exclude<T, null | undefined> =>
@@ -169,21 +168,32 @@ export function logEngineEvent(
 export function getAccountConfigForTest(
 	filepath: string,
 	accountType: "AwsAccount" | "AzureAccount" | "GcpAccount",
-	): CloudAccount {
-	const parsedConfig = FromConfigFile.parse(JSON.parse(fs.readFileSync(filepath, "utf8")));
-	const testingAccount = parsedConfig.accounts.find((account) => account.type === accountType);
+): CloudAccount {
+	const parsedConfig = FromConfigFile.parse(
+		JSON.parse(fs.readFileSync(filepath, "utf8")),
+	);
+	const testingAccount = parsedConfig.accounts.find(
+		(account) => account.type === accountType,
+	);
 	if (typeof testingAccount === "undefined") {
-		throw new Error(`No account of type ${accountType} found in ${filepath}`)
-	}
-	else {
+		throw new Error(`No account of type ${accountType} found in ${filepath}`);
+	} else {
 		return testingAccount;
 	}
 }
 
-export async function readFromPackageFile(filePath: string): Promise<FromPackageFile> {
-	return FromPackageFile.parse(JSON.parse(await fsPromise.readFile(filePath, "utf8")));
+export async function readFromPackageFile(
+	filePath: string,
+): Promise<FromPackageFile> {
+	return FromPackageFile.parse(
+		JSON.parse(await fsPromise.readFile(filePath, "utf8")),
+	);
 }
 
-export async function readFromConfigFile(filePath: string): Promise<FromConfigFile> {
-	return FromConfigFile.parse(JSON.parse(await fsPromise.readFile(filePath, "utf8")));
+export async function readFromConfigFile(
+	filePath: string,
+): Promise<FromConfigFile> {
+	return FromConfigFile.parse(
+		JSON.parse(await fsPromise.readFile(filePath, "utf8")),
+	);
 }
