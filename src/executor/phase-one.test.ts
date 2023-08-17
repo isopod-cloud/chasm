@@ -1,12 +1,161 @@
+import * as pulumi from "@pulumi/pulumi";
+
+let awsCounter = 0;
+let forwardingCounter = 0;
+
+pulumi.runtime.setMocks({
+    newResource: function(args: pulumi.runtime.MockResourceArgs): {id: string, state: any} {
+		switch (args.type) {
+            case "aws:ec2/vpnGateway:VpnGateway":
+				awsCounter++;
+                return {
+                    id: `sg-111111-${awsCounter}`,
+                    state: {
+                        ...args.inputs,
+                        id: `sg-111111-${awsCounter}`,
+                        name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
+                    },
+                };
+			case "azure-native:network:VirtualNetworkGateway":
+				return {
+					id: "sg-87654321",
+					state: {
+						...args.inputs,
+						id: "sg-87654321",
+						name: args.inputs.name || args.name,
+					},
+				};
+			case "gcp:compute/vPNGateway:VPNGateway":
+				return {
+					id: "sg-55555555",
+					state: {
+						...args.inputs,
+						id: "sg-55555555",
+						name: args.inputs.name || args.name,
+					},
+				};
+			case "azure-native:network:PublicIPAddress":
+				return {
+					id: "sg-22222222",
+					state: {
+						...args.inputs,
+						id: "sg-22222222",
+						ipAddress: "10.0.2.2",
+					},
+				};
+			case "gcp:compute/address:Address":
+				return {
+					id: "sg-66666666",
+					state: {
+						...args.inputs,
+						id: "sg-66666666",
+						labels: args.inputs.tags,
+						address: "172.16.129.1",
+					},
+				};
+			case "gcp:compute/forwardingRule:ForwardingRule":
+				forwardingCounter++;
+				return {
+					id: `forwarding-rule-${forwardingCounter}`,
+					state: {
+						...args.inputs,
+						id: `forwarding-rule-${forwardingCounter}`,
+					},
+				};
+		default:
+			return {
+				id: `unknown-resource-${args.type}`,
+				state: {
+					// NOTE: id is chosen to make it easy to debug problems
+					id: `unknown-resource-${args.type}`,
+					...args.inputs,
+				},
+			};
+		}
+    },
+    call: function(args: pulumi.runtime.MockCallArgs) {
+        switch (args.token) {
+            case "aws:ec2/getAmi:getAmi":
+                return {
+                    "architecture": "x86_64",
+                    "id": "ami-0eb1f3cdeeb8eed2a",
+                };
+			case "azure-native:network:getSubnet":
+				return {
+					id: "subnet-1234-abcd-5678-90ef",
+
+					etag: "",
+					ipConfigurationProfiles: [],
+					ipConfigurations: [],
+					privateEndpoints: [],
+					provisioningState: "ready",
+					purpose: "",
+					resourceNavigationLinks: [],
+					serviceAssociationLinks: [],
+		
+					...args.inputs
+				};
+			case "gcp:compute/getNetwork:getNetwork":
+				return {
+					id: "network-5678-1234-abcd-90ef",
+
+					// 
+					description: "",
+					gatewayIpv4: "172.16.129.10",
+					selfLink: "",
+					subnetworksSelfLinks: [],
+
+					...args.inputs
+				};
+			default:
+                return {
+					// NOTE: id is chosen to make it easy to debug problems
+					id: `undefined-call-${args.token}`,
+					...args.inputs
+				};
+        }
+    },
+},
+  "project",
+  "stack",
+  /* preview = */ false,
+);
+
+import * as aws from "@pulumi/aws";
+import * as azure from "@pulumi/azure-native";
+import * as gcp from "@pulumi/gcp";
 import { AwsVpc, Config, GcpSubnet, GcpVpc } from "../types/new-types";
 import {
 	AccountType,
+	VpcType,
 	AwsPhaseOneVpc,
 	AzurePhaseOneVpc,
 	GcpPhaseOneVpc,
 	PhaseOneAccount,
 	buildPhase1Result,
+	GcpPhaseOneResource,
+	AzurePhaseOneResource,
+	AwsPhaseOneResource,
+	PhaseOneVpc,
+	AwsPhaseOneResourceUnwrapped,
+	GcpPhaseOneResourceUnwrapped,
+	AzurePhaseOneResourceUnwrapped,
+	PhaseOneResourceUnwrapped,
+	getUnwrappedResourceRecords,
 } from "./phase-one";
+import { isPresent } from "../utils";
+
+// NOTE: These types are only used in this one unit test file to build vpc objects without a
+// resource attribute, so we declare them here, but if they become useful elsewhere, then we
+// should move them some place more appropriate.
+type AwsPhaseOneVpcWithoutResource = Omit<AwsPhaseOneVpc, "resource">;
+type GcpPhaseOneVpcWithoutResource = Omit<GcpPhaseOneVpc, "resource">;
+type AzurePhaseOneVpcWithoutResource = Omit<AzurePhaseOneVpc, "resource">;
+type PhaseOneVpcWithoutResource = Omit<PhaseOneVpc, "resource">;
+interface PhaseOneAccountWithoutResource {
+	type: AccountType;
+	vpcs: Record<string, PhaseOneVpcWithoutResource>;
+}
 
 describe("PhaseOneAccount", () => {
 	const config: Config = [
@@ -139,8 +288,8 @@ describe("PhaseOneAccount", () => {
 		},
 	];
 
-	const awsPhaseOneVpc1: AwsPhaseOneVpc = {
-		resource: null,
+	const awsPhaseOneVpc1: AwsPhaseOneVpcWithoutResource = {
+		type: VpcType.AwsVpc,
 		cidrs: [
 			"172.1.1.0/24",
 			"172.1.2.0/24",
@@ -224,8 +373,19 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
-		resource: null,
+	const awsVpc1ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped =
+	{
+		vpnGateway: {
+			id: "sg-111111-1",
+			vpcId: "vpc-12345678",
+			tags: {
+				"managed-by": "chasm",
+			},
+		},
+	};
+
+	const awsPhaseOneVpc2: AwsPhaseOneVpcWithoutResource = {
+		type: VpcType.AwsVpc,
 		cidrs: ["172.2.1.0/24", "172.2.2.0/24", "172.2.3.0/24"],
 		subnets: [
 			{
@@ -272,8 +432,19 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
-		resource: null,
+	const awsVpc2ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped =
+	{
+		vpnGateway: {
+			id: "sg-111111-2",
+			vpcId: "vpc-87654321",
+			tags: {
+				"managed-by": "chasm",
+			},
+		},
+	};
+
+	const gcpPhaseOneVpc: GcpPhaseOneVpcWithoutResource = {
+		type: VpcType.GcpVpc,
 		region: "us-west4",
 		vpnName: "12345678901234567",
 		cidrs: ["30.30.30.0/24"],
@@ -304,8 +475,61 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const azurePhaseOneVpc: AzurePhaseOneVpc = {
-		resource: null,
+	const gcpVpcResourcesUnwrapped: GcpPhaseOneResourceUnwrapped =
+	{
+		network: {
+			id: "network-5678-1234-abcd-90ef",
+			name: "my-project-vpc",
+			description: "",
+			gatewayIpv4: "172.16.129.10",
+			selfLink: "",
+			subnetworksSelfLinks: []
+		},
+		vpnGateway: {
+			id: "sg-55555555",
+			region: "us-west4",
+			name: "a-12345678901234567",
+		},
+		publicIp: {
+			id: "sg-66666666",
+			address: "172.16.129.1",
+			labels: {
+				"managed-by": "chasm",
+			},
+		},
+		forwardingRules: {
+			esp: {
+				id: "forwarding-rule-1",
+				name: "a-12345678901234567-esp",
+				ipAddress: "172.16.129.1",
+				ipProtocol: "ESP",
+				region: "us-west4",
+				target: "sg-55555555",
+				portRange: undefined,
+			},
+			ipsec: {
+				id: "forwarding-rule-2",
+				name: "a-12345678901234567-ipsec",
+				ipAddress: "172.16.129.1",
+				ipProtocol: "UDP",
+				region: "us-west4",
+				portRange: "500",
+				target: "sg-55555555",
+			},
+			ipsecNat: {
+				id: "forwarding-rule-3",
+				name: "a-12345678901234567-ipsecnat",
+				ipAddress: "172.16.129.1",
+				ipProtocol: "UDP",
+				region: "us-west4",
+				portRange: "4500",
+				target: "sg-55555555",
+			},
+		},
+	};
+
+	const azurePhaseOneVpc: AzurePhaseOneVpcWithoutResource = {
+		type: VpcType.AzureVpc,
 		vpcName: "test-resource-rg-vnet-12345678",
 		resourceGroupNameTruncated: "test-resource-rg",
 		resourceGroupName:
@@ -347,10 +571,35 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const expectedPhaseOneAccounts: Array<PhaseOneAccount> = [
+	const azureVpcResourcesUnwrapped: AzurePhaseOneResourceUnwrapped =
+	{
+		gatewaySubnet: {
+			id: "subnet-1234-abcd-5678-90ef",
+			etag: "",
+			ipConfigurationProfiles: [],
+			ipConfigurations: [],
+			privateEndpoints: [],
+			provisioningState: "ready",
+			purpose: "",
+			resourceNavigationLinks: [],
+			serviceAssociationLinks: []
+		},
+		publicIp: {
+			id: "sg-22222222",
+			ipAddress: "10.0.2.2",
+		},
+		vpnGateway: {
+			id: "sg-87654321",
+			name: "vpn-gateway//subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678",
+			tags: {
+				"managed-by": "chasm",
+			},
+		},
+	};
+
+	const expectedPhaseOneAccountsWithResourcesOmitted : Array<PhaseOneAccountWithoutResource> = [
 		{
 			type: AccountType.AwsAccount,
-			mockup: true,
 			vpcs: {
 				"vpc-12345678": awsPhaseOneVpc1,
 				"vpc-87654321": awsPhaseOneVpc2,
@@ -358,7 +607,6 @@ describe("PhaseOneAccount", () => {
 		},
 		{
 			type: AccountType.GcpAccount,
-			mockup: true,
 			vpcs: {
 				"12345678901234567": gcpPhaseOneVpc,
 			},
@@ -366,7 +614,6 @@ describe("PhaseOneAccount", () => {
 
 		{
 			type: AccountType.AzureAccount,
-			mockup: true,
 			vpcs: {
 				"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
 					azurePhaseOneVpc,
@@ -374,10 +621,34 @@ describe("PhaseOneAccount", () => {
 		},
 	];
 
-	beforeEach(() => {});
+	const expectedPhaseOneUnwrappedResources: Record<string, PhaseOneResourceUnwrapped> = {
+		"vpc-12345678": awsVpc1ResourcesUnwrapped,
+		"vpc-87654321": awsVpc2ResourcesUnwrapped,
+		"12345678901234567": gcpVpcResourcesUnwrapped,
+		"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678": azureVpcResourcesUnwrapped,
+	};
 
-	it("buildPhase1Result builds expected PhaseOneAccount", () => {
-		const result = buildPhase1Result(config, /* mockup = */ true);
-		expect(result).toMatchObject(expectedPhaseOneAccounts);
+	beforeEach(() => {
+		awsCounter = 0;
+		forwardingCounter = 0;
+	});
+
+	it("buildPhase1Result builds expected PhaseOneAccount", async () => {
+		// IMPORTANT: Because result has resource members containing objects with its own members
+		// wrapped in pulumi outputs, and these can't be checked without unwrapping, we do the
+		// following: (1) verify all attributes excluding the resources objects, (2) unwrap all
+		// members of resources, building "unwrapped resource records", then verify that
+		// separately.
+
+		const result = buildPhase1Result(config);
+		expect(result).toMatchObject(expectedPhaseOneAccountsWithResourcesOmitted);
+
+		const records = await getUnwrappedResourceRecords(result);
+
+		// vpc id's used as keys in records must match the expected ones exactly
+		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneUnwrappedResources)));
+
+		// unwrapped resource values in records should at least contain the attributes we expect
+		expect(records).toMatchObject(expectedPhaseOneUnwrappedResources);
 	});
 });
