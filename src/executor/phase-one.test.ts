@@ -1,3 +1,22 @@
+import * as pulumi from "@pulumi/pulumi";
+
+pulumi.runtime.setMocks({
+    newResource: function(args: pulumi.runtime.MockResourceArgs): {id: string, state: any} {
+        return {
+            id: args.inputs.name + "_id",
+            state: args.inputs,
+        };
+    },
+    call: function(args: pulumi.runtime.MockCallArgs) {
+        return args.inputs;
+    },
+},
+  "project",
+  "stack",
+  /* preview = */ false,
+);
+
+import * as aws from "@pulumi/aws";
 import { AwsVpc, Config, GcpSubnet, GcpVpc } from "../types/new-types";
 import {
 	AccountType,
@@ -7,6 +26,7 @@ import {
 	PhaseOneAccount,
 	buildPhase1Result,
 } from "./phase-one";
+import { isPresent } from "../utils";
 
 describe("PhaseOneAccount", () => {
 	const config: Config = [
@@ -379,5 +399,25 @@ describe("PhaseOneAccount", () => {
 	it("buildPhase1Result builds expected PhaseOneAccount", () => {
 		const result = buildPhase1Result(config, /* mockup = */ true);
 		expect(result).toMatchObject(expectedPhaseOneAccounts);
+	});
+
+	const vpnGateway = new aws.ec2.VpnGateway(
+		`vpn-gateway/abc123`,
+		{
+			vpcId: "id-something",
+			tags: {
+				"a": "aa",
+				"b": "bb"
+			},
+		},
+	);
+
+	it("vpnGateway", () => {
+		pulumi.all([vpnGateway.tags, vpnGateway.vpcId]).apply(([tags, vpcId]) => {
+			expect(isPresent(tags?.a)).toBeTruthy();
+			expect(isPresent(tags?.b)).toBeTruthy();
+			expect(isPresent(tags?.c)).toBeFalsy();
+			expect(vpcId).toBe("id-something");
+		});
 	});
 });
