@@ -23,7 +23,6 @@ describe("PhaseOneAccount", () => {
 					},
 					type: "AwsVpc",
 					region: "us-east-1",
-					cidr: "172.1.0.0/16",
 					subnets: [
 						{
 							id: "subnet-00000001",
@@ -64,7 +63,6 @@ describe("PhaseOneAccount", () => {
 					},
 					type: "AwsVpc",
 					region: "us-east-1",
-					cidr: "172.2.0.0/16",
 					subnets: [
 						{
 							id: "subnet-00000011",
@@ -254,7 +252,6 @@ describe("PhaseOneAccount", () => {
 			},
 			type: "AwsVpc",
 			region: "us-east-1",
-			cidr: "172.2.0.0/16",
 			subnets: [
 				{
 					id: "subnet-00000011",

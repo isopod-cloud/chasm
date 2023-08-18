@@ -11,7 +11,7 @@ import {
 } from "../utils";
 import { planMesh } from "./plan-mesh";
 
-export const provisionNetwork = async (args: ToSynthesize) => {
+export const provisionNetwork = async (args: ToSynthesize): Promise<void> => {
 	const options = prepareWorkspaceOptions(args);
 
 	const meshStack = await pulumi.automation.LocalWorkspace.createOrSelectStack(
@@ -62,7 +62,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 			pass1Targeter[lookup.value[0]] = lookup.value[1];
 		}
 
-		const meshRefreshResult2 = await meshStack.refresh({
+		const _meshRefreshResult2 = await meshStack.refresh({
 			onOutput: process.stdout.write.bind(process.stdout),
 			onEvent: (event) => {
 				logEngineEvent(stream, event);
@@ -70,7 +70,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 			color: "auto",
 		});
 
-		const meshResult2 = await meshStack.up({
+		const _meshResult2 = await meshStack.up({
 			onOutput: process.stdout.write.bind(process.stdout),
 			onEvent: (event) => {
 				logEngineEvent(stream, event);
@@ -83,7 +83,7 @@ export const provisionNetwork = async (args: ToSynthesize) => {
 	}
 };
 
-export const deProvisionNetwork = async (args: ToSynthesize) => {
+export const deProvisionNetwork = async (args: ToSynthesize): Promise<void> => {
 	const options = prepareWorkspaceOptions(args);
 
 	const meshStack = await pulumi.automation.LocalWorkspace.createOrSelectStack(

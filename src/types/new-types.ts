@@ -95,7 +95,6 @@ export type BaseVpc = z.infer<typeof BaseVpc>;
 export const AwsVpc = BaseVpc.extend({
 	type: z.literal("AwsVpc"),
 	region: z.string().min(1),
-	cidr: IpV4Cidr,
 	subnets: z.array(AwsSubnet),
 });
 export type AwsVpc = z.infer<typeof AwsVpc>;

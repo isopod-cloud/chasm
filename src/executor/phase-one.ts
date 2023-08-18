@@ -61,7 +61,7 @@ export interface AwsPhaseOneVpc extends BasePhaseOneVpc {
 const buildForAwsAccount = (
 	account: AwsAccount,
 	mockup: boolean,
-): PhaseOneAccount => {
+) => {
 	const vpcArray: Array<[string, AwsPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
@@ -111,7 +111,7 @@ export interface AzurePhaseOneVpc extends BasePhaseOneVpc {
 const buildForAzureAccount = (
 	account: AzureAccount,
 	mockup: boolean,
-): PhaseOneAccount => {
+) => {
 	const vpcArray: Array<[string, AzurePhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const vpcName = vpc.id.split("/").slice(-1)[0];
@@ -240,7 +240,7 @@ export interface GcpPhaseOneVpc extends BasePhaseOneVpc {
 const buildForGcpAccount = (
 	account: GcpAccount,
 	mockup: boolean,
-): PhaseOneAccount => {
+) => {
 	const vpcArray: Array<[string, GcpPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);

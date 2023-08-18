@@ -52,7 +52,6 @@
 		"@pulumi/gcp": "^6.61.1",
 		"@pulumi/pulumi": "^3.76.1",
 		"commander": "^11.0.0",
-		"dotenv": "^16.3.1",
 		"ip-address": "^8.1.0",
 		"ip-num": "^1.5.1",
 		"pino": "^8.14.2",
