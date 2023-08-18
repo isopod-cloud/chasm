@@ -1,6 +1,7 @@
 import { AwsVpc, Config, GcpSubnet, GcpVpc } from "../types/new-types";
 import {
 	AccountType,
+	VpcType,
 	AwsPhaseOneVpc,
 	AzurePhaseOneVpc,
 	GcpPhaseOneVpc,
@@ -140,6 +141,7 @@ describe("PhaseOneAccount", () => {
 	];
 
 	const awsPhaseOneVpc1: AwsPhaseOneVpc = {
+		type: VpcType.AwsVpc,
 		resource: null,
 		cidrs: [
 			"172.1.1.0/24",
@@ -225,6 +227,7 @@ describe("PhaseOneAccount", () => {
 	};
 
 	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
+		type: VpcType.AwsVpc,
 		resource: null,
 		cidrs: ["172.2.1.0/24", "172.2.2.0/24", "172.2.3.0/24"],
 		subnets: [
@@ -273,6 +276,7 @@ describe("PhaseOneAccount", () => {
 	};
 
 	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
+		type: VpcType.GcpVpc,
 		resource: null,
 		region: "us-west4",
 		vpnName: "12345678901234567",
@@ -305,6 +309,7 @@ describe("PhaseOneAccount", () => {
 	};
 
 	const azurePhaseOneVpc: AzurePhaseOneVpc = {
+		type: VpcType.AzureVpc,
 		resource: null,
 		vpcName: "test-resource-rg-vnet-12345678",
 		resourceGroupNameTruncated: "test-resource-rg",

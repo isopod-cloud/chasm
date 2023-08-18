@@ -6,7 +6,7 @@ import {
 	AzureSubnet,
 	AzureVpc,
 	BaseSubnet,
-	BaseVpc,
+	Vpc,
 	Config,
 	GcpAccount,
 	GcpSubnet,
@@ -27,6 +27,12 @@ export enum AccountType {
 	GcpAccount = "GcpAccount",
 }
 
+export enum VpcType {
+	AwsVpc = "AwsVpc",
+	AzureVpc = "AzureVpc",
+	GcpVpc = "GcpVpc",
+}
+
 // TODO: move into types section, consider refactoring as a class or zod type. exported for testing
 export interface BasePhaseOneResource {}
 
@@ -35,14 +41,7 @@ export interface BasePhaseOneVpc {
 	resource: Nullable<BasePhaseOneResource>;
 	cidrs: Array<IpV4Cidr>;
 	subnets: Array<BaseSubnet>;
-	vpc: BaseVpc;
-}
-
-// TODO: move into types section, consider refactoring as a class or zod type. exported for testing
-export interface PhaseOneAccount {
-	type: AccountType;
-	mockup: boolean;
-	vpcs: Record<string, BasePhaseOneVpc>;
+	vpc: Vpc;
 }
 
 // TODO: move into aws section, consider refactoring as a class or zod type. exported for testing
@@ -52,6 +51,7 @@ export interface AwsPhaseOneResource extends BasePhaseOneResource {
 
 // TODO: move into aws section, consider refactoring as a class or zod type. exported for testing
 export interface AwsPhaseOneVpc extends BasePhaseOneVpc {
+	type: VpcType.AwsVpc;
 	resource: Nullable<AwsPhaseOneResource>;
 	subnets: Array<AwsSubnet>;
 	vpc: AwsVpc;
@@ -66,7 +66,7 @@ const buildForAwsAccount = (
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 			if (mockup) {
-				return [vpc.id, { resource: null, cidrs, subnets: vpc.subnets, vpc }];
+				return [vpc.id, { type: VpcType.AwsVpc, resource: null, cidrs, subnets: vpc.subnets, vpc }];
 			} else {
 				const vpnGateway = new aws.ec2.VpnGateway(
 					`vpn-gateway/${account.id}/${vpc.id}`,
@@ -78,7 +78,7 @@ const buildForAwsAccount = (
 
 				return [
 					vpc.id,
-					{ resource: { vpnGateway }, cidrs, subnets: vpc.subnets, vpc },
+					{ type: VpcType.AwsVpc, resource: { vpnGateway }, cidrs, subnets: vpc.subnets, vpc },
 				];
 			}
 		}) ?? [];
@@ -98,6 +98,7 @@ export interface AzurePhaseOneResource extends BasePhaseOneResource {
 
 // TODO: move into azure section, consider refactoring as a class or zod type. exported for testing
 export interface AzurePhaseOneVpc extends BasePhaseOneVpc {
+	type: VpcType.AzureVpc;
 	resource: Nullable<AzurePhaseOneResource>;
 	vpcName: string;
 	resourceGroupNameTruncated: string;
@@ -122,6 +123,7 @@ const buildForAzureAccount = (
 				return [
 					vpc.id,
 					{
+						type: VpcType.AzureVpc,
 						resource: null,
 						vpcName,
 						resourceGroupNameTruncated,
@@ -186,6 +188,7 @@ const buildForAzureAccount = (
 				return [
 					vpc.id,
 					{
+						type: VpcType.AzureVpc,
 						resource: {
 							gatewaySubnet,
 							publicIp,
@@ -225,6 +228,7 @@ export interface GcpPhaseOneResource extends BasePhaseOneResource {
 
 // TODO: move into gcp section, consider refactoring as a class or zod type. exported for testing
 export interface GcpPhaseOneVpc extends BasePhaseOneVpc {
+	type: VpcType.GcpVpc;
 	resource: Nullable<GcpPhaseOneResource>;
 	region: string;
 	vpnName: string;
@@ -246,6 +250,7 @@ const buildForGcpAccount = (
 				return [
 					vpc.id,
 					{
+						type: VpcType.GcpVpc,
 						resource: null,
 						region,
 						vpnName,
@@ -304,6 +309,7 @@ const buildForGcpAccount = (
 				return [
 					vpc.id,
 					{
+						type: VpcType.GcpVpc,
 						resource: {
 							network,
 							vpnGateway,
@@ -325,6 +331,33 @@ const buildForGcpAccount = (
 		vpcs: Object.fromEntries(vpcArray),
 	};
 };
+
+// TODO: move into types section, consider refactoring as a class or zod type. exported for testing
+export interface BasePhaseOneAccount {
+	type: AccountType;
+	mockup: boolean;
+}
+
+export interface AwsPhaseOneAccount extends BasePhaseOneAccount {
+	type: AccountType.AwsAccount;
+	vpcs: Record<string, AwsPhaseOneVpc>;
+}
+
+export interface AzurePhaseOneAccount extends BasePhaseOneAccount {
+	type: AccountType.AzureAccount;
+	vpcs: Record<string, AzurePhaseOneVpc>;
+}
+
+export interface GcpPhaseOneAccount extends BasePhaseOneAccount {
+	type: AccountType.GcpAccount;
+	vpcs: Record<string, GcpPhaseOneVpc>;
+}
+
+export type PhaseOneVpc = AwsPhaseOneVpc | AzurePhaseOneVpc | GcpPhaseOneVpc;
+export type PhaseOneAccount =
+	| AwsPhaseOneAccount
+	| AzurePhaseOneAccount
+	| GcpPhaseOneAccount;
 
 // exported for testing
 export function buildPhase1Result(
