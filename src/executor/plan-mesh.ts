@@ -1,12 +1,15 @@
 import { ToSynthesize } from "../config";
-import { Config, IpV4Address, Tags, AwsVpc, AzureVpc, GcpVpc } from "../types/new-types";
+import {
+	Config,
+	IpV4Address,
+	Tags,
+	AwsVpc,
+	AzureVpc,
+	GcpVpc,
+} from "../types/new-types";
 
 import { Targeter } from "./targeter";
-import {
-	AccountType,
-	PhaseOneVpc,
-	buildPhase1Result,
-} from "./phase-one";
+import { AccountType, PhaseOneVpc, buildPhase1Result } from "./phase-one";
 import { isPresent, overlappingCidrsExist } from "../utils";
 
 import * as aws from "@pulumi/aws";
@@ -24,9 +27,7 @@ const awsMakeSecurityGroup = (
 	new aws.ec2.SecurityGroup(
 		`security-group/${vpc.id}`,
 		{
-			name: pulumi.interpolate`Allow-${
-				vpc.id.split("/").slice(-1)[0]
-			}`,
+			name: pulumi.interpolate`Allow-${vpc.id.split("/").slice(-1)[0]}`,
 			tags: tags,
 			description: `Permit all traffic to/from the mesh.`,
 			vpcId: vpc.id,
@@ -111,9 +112,7 @@ const gcpMakeFirewallPolicy = (
 		`firewall-policy/${vpc.id}`,
 		{
 			project: vpc.projectName,
-			name: pulumi.interpolate`Allow-${
-				vpc.id.split("/").slice(-1)[0]
-			}`,
+			name: pulumi.interpolate`Allow-${vpc.id.split("/").slice(-1)[0]}`,
 			description: `Permit all traffic to/from the mesh.`,
 		},
 		{
@@ -169,8 +168,6 @@ const gcpMakeFirewallPolicy = (
 		},
 	);
 };
-
-
 
 async function planMeshInternal(
 	meshArgs: ToSynthesize,
@@ -554,37 +551,33 @@ async function planMeshInternal(
 				switch (targetAccount.type) {
 					case AccountType.AwsAccount: {
 						if (targetVpc.vpc.type !== "AwsVpc") {
-							throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+							throw new Error("Unexpected non-AWS VPCs inside AWS Account.");
 						}
 						awsMakeSecurityGroup(
 							undefined, // pending multiaccount support
 							targetVpc.vpc,
 							{ ...targetVpc.vpc.tags }, // Pending more complete tags
-							targetCidrs
-						)
+							targetCidrs,
+						);
 						break;
 					}
 					case AccountType.AzureAccount: {
 						if (targetVpc.vpc.type !== "AzureVpc") {
-							throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+							throw new Error("Unexpected non-AWS VPCs inside AWS Account.");
 						}
 						azureMakeSecurityGroup(
 							undefined,
 							targetVpc.vpc,
 							{ ...targetVpc.vpc.tags },
-							targetCidrs
-						)
+							targetCidrs,
+						);
 						break;
 					}
 					case AccountType.GcpAccount: {
 						if (targetVpc.vpc.type !== "GcpVpc") {
-							throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+							throw new Error("Unexpected non-AWS VPCs inside AWS Account.");
 						}
-						gcpMakeFirewallPolicy(
-							undefined,
-							targetVpc.vpc,
-							targetCidrs
-						)
+						gcpMakeFirewallPolicy(undefined, targetVpc.vpc, targetCidrs);
 						break;
 					}
 					default: {

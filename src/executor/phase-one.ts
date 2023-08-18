@@ -58,15 +58,21 @@ export interface AwsPhaseOneVpc extends BasePhaseOneVpc {
 }
 
 // TODO: move this into aws section
-const buildForAwsAccount = (
-	account: AwsAccount,
-	mockup: boolean,
-) => {
+const buildForAwsAccount = (account: AwsAccount, mockup: boolean) => {
 	const vpcArray: Array<[string, AwsPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 			if (mockup) {
-				return [vpc.id, { type: VpcType.AwsVpc, resource: null, cidrs, subnets: vpc.subnets, vpc }];
+				return [
+					vpc.id,
+					{
+						type: VpcType.AwsVpc,
+						resource: null,
+						cidrs,
+						subnets: vpc.subnets,
+						vpc,
+					},
+				];
 			} else {
 				const vpnGateway = new aws.ec2.VpnGateway(
 					`vpn-gateway/${account.id}/${vpc.id}`,
@@ -78,7 +84,13 @@ const buildForAwsAccount = (
 
 				return [
 					vpc.id,
-					{ type: VpcType.AwsVpc, resource: { vpnGateway }, cidrs, subnets: vpc.subnets, vpc },
+					{
+						type: VpcType.AwsVpc,
+						resource: { vpnGateway },
+						cidrs,
+						subnets: vpc.subnets,
+						vpc,
+					},
 				];
 			}
 		}) ?? [];
@@ -108,10 +120,7 @@ export interface AzurePhaseOneVpc extends BasePhaseOneVpc {
 }
 
 // TODO: move this into azure section
-const buildForAzureAccount = (
-	account: AzureAccount,
-	mockup: boolean,
-) => {
+const buildForAzureAccount = (account: AzureAccount, mockup: boolean) => {
 	const vpcArray: Array<[string, AzurePhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const vpcName = vpc.id.split("/").slice(-1)[0];
@@ -237,10 +246,7 @@ export interface GcpPhaseOneVpc extends BasePhaseOneVpc {
 }
 
 // TODO: move this into gcp section
-const buildForGcpAccount = (
-	account: GcpAccount,
-	mockup: boolean,
-) => {
+const buildForGcpAccount = (account: GcpAccount, mockup: boolean) => {
 	const vpcArray: Array<[string, GcpPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
