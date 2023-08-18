@@ -79,12 +79,24 @@ pages:
     paths:
       - public
 
+test docker build:
+  script: docker build -t isopod/chasm:$CI_COMMIT_REF_SLUG .
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      changes:  # Include the job and set to when: manual if any of the following paths match a modified file.
+        - Dockerfile
+        - docker/scripts/*
+      when: manual
+
 build docker:
   tags:
     - strong-aws
   needs:
     - compile typescript to javascript
     - install
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
   image: docker:$DOCKER_CONTAINER_VERSION
   services:
     - docker:$DOCKER_CONTAINER_VERSION-dind
@@ -149,4 +161,25 @@ build docker:
     # Push all of those tags we just applied
     - xargs -I {} docker push "{}" < image_list
     - echo "Pushed the following docker images:"; cat image_list
+
+
+publish latest api client:
+  stage: deploy
+  needs:
+    - compile typescript to javascript
+    - install
+  script:
+    - |
+      echo "
+      npmScopes:
+        isopod:
+          npmPublishRegistry: "https://registry.npmjs.org"
+          npmRegistryServer: "https://registry.npmjs.org"
+          npmAlwaysAuth: true
+          npmAuthToken: \"${NPM_TOKEN}\"
+      " >> .yarnrc.yml
+    - yarn workspace @isopod/chasm npm publish --tag latest --access public
+  rules:
+    # Semver tag regex, per their official recommendation (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string), plus optional `v` prefix since Yarn likes to use those.
+    - if: '$CI_COMMIT_TAG =~ /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/'
 

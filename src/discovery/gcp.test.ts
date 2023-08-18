@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { z } from "zod";
 
 // GCP is apparently very, very slow
-const timeOut = 300000 // Timeout for try until done is 300seconds, so this is converted to ms
+const timeOut = 300000; // Timeout for try until done is 300seconds, so this is converted to ms
 // GCP Helper functions, likely gonna be replaced by some sort of fixturizer
 const insertResponseSchema = z.object({
 	latestResponse: z.object({
@@ -88,14 +88,13 @@ async function createGcpTestFixturesDA(
 		subReq,
 		300,
 	);
-};
+}
 
 async function destroyGcpTestFixturesDA(
 	subnetClient: SubnetworksClient,
 	netClient: NetworksClient,
 	gcpAccount: GcpAccount,
 ): Promise<void> {
-
 	const project = gcpAccount.project;
 	const region = "us-central1";
 
@@ -120,69 +119,66 @@ async function destroyGcpTestFixturesDA(
 		subnetClient.delete.bind(subnetClient),
 		subnetInput,
 		300,
-	).then((_res) => {
-	});
+	).then((_res) => {});
 
 	const _n = await tryUntilDone(
 		netClient.delete.bind(netClient),
 		netInput,
 		300,
-	).then((_res) => {
-	});
-};
+	).then((_res) => {});
+}
 
 describe("discovery agent tests for gcp", () => {
 	const netClient = new NetworksClient({});
 	const subnetClient = new SubnetworksClient({});
-	const gcpAccount = getAccountConfigForTest("./config.json", "GcpAccount") as GcpAccount; // If this function didn't error, this has to be an GcpAccount
+	const gcpAccount = getAccountConfigForTest(
+		"./config.json",
+		"GcpAccount",
+	) as GcpAccount; // If this function didn't error, this has to be an GcpAccount
 	beforeAll(async () => {
-		await createGcpTestFixturesDA(
-			subnetClient,
-			netClient,
-			gcpAccount
-		);
+		await createGcpTestFixturesDA(subnetClient, netClient, gcpAccount);
 	}, timeOut);
 	afterAll(async () => {
-		await destroyGcpTestFixturesDA(
-			subnetClient,
-			netClient,
-			gcpAccount,
-		);
+		await destroyGcpTestFixturesDA(subnetClient, netClient, gcpAccount);
 	}, timeOut);
-	it("should get test subnets from gcp account(s)", async () => {
-		const result: GcpVpc[] = await getVpcs(gcpAccount);
+	it(
+		"should get test subnets from gcp account(s)",
+		async () => {
+			const result: GcpVpc[] = await getVpcs(gcpAccount);
 
-		console.log(result.length);
+			console.log(result.length);
 
-		let testSubnets: GcpSubnet[] | undefined = undefined;
+			let testSubnets: GcpSubnet[] | undefined = undefined;
 
-		const testVpcs: GcpVpc[] = [];
+			const testVpcs: GcpVpc[] = [];
 
-		for (const res of result) {
-			if (res.networkName === "test-network-osp") {
-				testVpcs.push(res);
-				testSubnets = res.subnets;
+			for (const res of result) {
+				if (res.networkName === "test-network-osp") {
+					testVpcs.push(res);
+					testSubnets = res.subnets;
+				}
 			}
-		}
 
-		expect(result).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					type: "GcpVpc",
-					projectName: gcpAccount.project,
-					networkName: "test-network-osp",
-				}),
-			]),
-		);
+			expect(result).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						type: "GcpVpc",
+						projectName: gcpAccount.project,
+						networkName: "test-network-osp",
+					}),
+				]),
+			);
 
-		expect(testSubnets).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					type: "GcpSubnet",
-					cidr: `10.77.5.0/24`,
-				}),
-			]),
-		);
-		expect(testSubnets).toHaveLength(1);
-	}, timeOut);
+			expect(testSubnets).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						type: "GcpSubnet",
+						cidr: `10.77.5.0/24`,
+					}),
+				]),
+			);
+			expect(testSubnets).toHaveLength(1);
+		},
+		timeOut,
+	);
 });
