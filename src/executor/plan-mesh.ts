@@ -1,5 +1,5 @@
 import { ToSynthesize } from "../config";
-import { Config, IpV4Address } from "../types/new-types";
+import { Config, IpV4Address, Tags, AwsVpc, AzureVpc, GcpVpc } from "../types/new-types";
 
 import { Targeter } from "./targeter";
 import {
@@ -14,6 +14,180 @@ import * as azure from "@pulumi/azure-native";
 import * as gcp from "@pulumi/gcp";
 import * as pulumi from "@pulumi/pulumi";
 import * as crypto from "crypto";
+
+const awsMakeSecurityGroup = (
+	provider: aws.Provider | undefined,
+	vpc: AwsVpc,
+	tags: Tags,
+	cidrs: string[],
+): void => {
+	new aws.ec2.SecurityGroup(
+		`security-group/${vpc.id}`,
+		{
+			name: pulumi.interpolate`Allow-${
+				vpc.id.split("/").slice(-1)[0]
+			}`,
+			tags: tags,
+			description: `Permit all traffic to/from the mesh.`,
+			vpcId: vpc.id,
+			egress: [
+				{
+					description: `Permit all traffic to the mesh.`,
+					cidrBlocks: cidrs,
+					protocol: "all",
+					fromPort: 0,
+					toPort: 0,
+				},
+			],
+			ingress: [
+				{
+					description: `Permit all traffic from the mesh.`,
+					cidrBlocks: cidrs,
+					protocol: "all",
+					fromPort: 0,
+					toPort: 0,
+				},
+			],
+		},
+		{
+			provider,
+		},
+	);
+};
+
+const azureMakeSecurityGroup = (
+	provider: azure.Provider | undefined,
+	vpc: AzureVpc,
+	tags: Tags,
+	cidrs: string[],
+): void => {
+	new azure.network.NetworkSecurityGroup(
+		`security-group/${vpc.id}`,
+		{
+			resourceGroupName: vpc.resourceGroupName,
+			networkSecurityGroupName: pulumi.interpolate`Allow-${
+				vpc.id.split("/").slice(-1)[0]
+			}`,
+			securityRules: [
+				{
+					description: `Permit all traffic from the mesh.`,
+					priority: 200,
+					access: "Allow",
+					direction: "Inbound",
+					protocol: "*",
+					sourceAddressPrefixes: cidrs,
+					sourcePortRange: "*",
+					destinationAddressPrefix: "*",
+					destinationPortRange: "*",
+					name: "ingress",
+				},
+				{
+					description: `Permit all traffic to the mesh.`,
+					priority: 300,
+					access: "Allow",
+					direction: "Outbound",
+					protocol: "*",
+					sourceAddressPrefix: "*",
+					sourcePortRange: "*",
+					destinationAddressPrefixes: cidrs,
+					destinationPortRange: "*",
+					name: "egress",
+				},
+			],
+			tags: tags,
+		},
+		{
+			provider,
+		},
+	);
+};
+
+const gcpMakeFirewallPolicy = (
+	provider: gcp.Provider | undefined,
+	vpc: GcpVpc,
+	cidrs: string[],
+): void => {
+	const policy = new gcp.compute.NetworkFirewallPolicy(
+		`firewall-policy/${vpc.id}`,
+		{
+			project: vpc.projectName,
+			name: pulumi.interpolate`Allow-${
+				vpc.id.split("/").slice(-1)[0]
+			}`,
+			description: `Permit all traffic to/from the mesh.`,
+		},
+		{
+			provider,
+		},
+	);
+	const _ingressRule = new gcp.compute.NetworkFirewallPolicyRule(
+		`firewall-rule/${vpc.id}/ingress`,
+		{
+			project: vpc.projectName,
+			ruleName: "ingress",
+			action: "allow",
+			direction: "INGRESS",
+			description: `Permit all traffic from the mesh.`,
+			priority: 200,
+			firewallPolicy: policy.name,
+			match: {
+				srcIpRanges: cidrs,
+				destIpRanges: ["0.0.0.0/0"],
+				layer4Configs: [
+					{
+						ipProtocol: "all",
+					},
+				],
+			},
+		},
+		{
+			provider,
+		},
+	);
+	const _egressRule = new gcp.compute.NetworkFirewallPolicyRule(
+		`firewall-rule/${vpc.id}/egress`,
+		{
+			project: vpc.projectName,
+			ruleName: "egress",
+			action: "allow",
+			direction: "EGRESS",
+			description: `Permit all traffic to the mesh.`,
+			priority: 300,
+			firewallPolicy: policy.name,
+			match: {
+				destIpRanges: cidrs,
+				srcIpRanges: ["0.0.0.0/0"],
+				layer4Configs: [
+					{
+						ipProtocol: "all",
+					},
+				],
+			},
+		},
+		{
+			provider,
+		},
+	);
+	// TODO: Do we want to stitch the new firewall into the VPC immediately?
+	// new gcp.compute.NetworkFirewallPolicyAssociation(
+	// 	`firewall-association/${vpc.id}`,
+	// 	{
+	// 		project: vpc.projectName,
+	// 		name: pulumi.interpolate`connectto-${
+	// 			vpc.id.split("/").slice(-1)[0]
+	// 		}`,
+
+	// 		firewallPolicy: policy.name,
+	// 		attachmentTarget: vpcUrl,
+	// 	},
+	// 	{
+	// 		provider,
+	// 		dependsOn: [policy, ingressRule, egressRule],
+	// 	},
+	// );
+};
+
+
 
 async function planMeshInternal(
 	meshArgs: ToSynthesize,
@@ -377,6 +551,65 @@ async function planMeshInternal(
 			}
 		}
 	}
+
+	// Do the security groups
+	for (const targetAccount of phase1Result) {
+		for (const targetVpcId of Object.keys(targetAccount.vpcs)) {
+			// This silly step is required because the static analyzer evaluates
+			// the type of Object.values(dstAccount.vpcs) to be `any`. So we bounce
+			// through the key lookup instead.
+			const targetVpc = targetAccount.vpcs[targetVpcId];
+			const targetCidrs: string[] = [];
+			for (const dstAccount of phase1Result) {
+				for (const dstVpcId of Object.keys(dstAccount.vpcs)) {
+					const dstVpc = dstAccount.vpcs[dstVpcId];
+					if (dstVpc === targetVpc) continue;
+					targetCidrs.concat(dstVpc.cidrs);
+				}
+			}
+			switch (targetAccount.type) {
+				case AccountType.AwsAccount: {
+					if (targetVpc.vpc.type !== "AwsVpc") {
+						throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+					}
+					awsMakeSecurityGroup(
+						undefined, // pending multiaccount support
+						targetVpc.vpc,
+						{ ...targetVpc.vpc.tags }, // Pending more complete tags
+						targetCidrs
+					)
+					break;
+				}
+				case AccountType.AzureAccount: {
+					if (targetVpc.vpc.type !== "AzureVpc") {
+						throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+					}
+					azureMakeSecurityGroup(
+						undefined,
+						targetVpc.vpc,
+						{ ...targetVpc.vpc.tags },
+						targetCidrs
+					)
+					break;
+				}
+				case AccountType.GcpAccount: {
+					if (targetVpc.vpc.type !== "GcpVpc") {
+						throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+					}
+					gcpMakeFirewallPolicy(
+						undefined,
+						targetVpc.vpc,
+						targetCidrs
+					)
+					break;
+				}
+				default: {
+					(targetAccount.type satisfies never)
+				}
+			}
+		}
+	}
+
 	return await Promise.resolve(
 		Array.from(
 			(function* () {
