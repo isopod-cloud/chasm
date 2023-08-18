@@ -1,17 +1,10 @@
-import {
-	Configuration,
-	ToSynthesize,
-} from "./config";
+#!/usr/bin/env node
+import { ToSynthesize } from "./config";
 import { Command } from "@commander-js/extra-typings";
 // Sam: this is it:      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Gotta use the specific extra-typings import
 import { writeFileSync } from "fs";
-import { config as loadEnv } from "dotenv";
-import {
-	isPresent,
-	readFromConfigFile,
-	readFromPackageFile,
-} from "./utils";
+import { isPresent, readFromConfigFile, readFromPackageFile } from "./utils";
 import { getSubnets } from "./discovery";
 import * as readline from "readline";
 import { deProvisionNetwork, provisionNetwork } from "./executor/fixture";
@@ -143,7 +136,7 @@ async function main() {
 
 	program
 		.version(packageJson.version)
-		.name(packageJson.name)
+		.name(packageJson.name.split("/")[1])
 		.description(packageJson.description ? packageJson.description : "---")
 		.usage("<OPTION...>")
 		.addCommand(findCmd)

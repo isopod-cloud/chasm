@@ -1,9 +1,5 @@
 import { getVpcs } from "./aws";
-import {
-	AwsVpc,
-	AwsSubnet,
-	AwsAccount,
-} from "../types/new-types";
+import { AwsVpc, AwsSubnet, AwsAccount } from "../types/new-types";
 import { getAccountConfigForTest } from "../utils";
 import {
 	DescribeSubnetsCommand,
@@ -57,11 +53,9 @@ async function createAwsTestFixturesDA(
 		const subnetCommand = new CreateSubnetCommand(subnetInput);
 		const _createSubnetResponse = await ec2Client.send(subnetCommand);
 	}
-};
+}
 
-async function destroyAwsTestFixturesDA(
-	ec2Client: EC2Client,
-): Promise<void> {
+async function destroyAwsTestFixturesDA(ec2Client: EC2Client): Promise<void> {
 	const describeSubInput = {
 		Filters: [
 			{
@@ -104,11 +98,14 @@ async function destroyAwsTestFixturesDA(
 	};
 	const vpcCommand = new DeleteVpcCommand(vpcInput);
 	const _deleteVpcResponse = await ec2Client.send(vpcCommand);
-};
+}
 
 describe("discovery agent tests for aws", () => {
 	const numSubnets = 3;
-	const awsAccount = getAccountConfigForTest("./config.json", "AwsAccount") as AwsAccount; // If this function didn't error, this has to be an AwsAccount
+	const awsAccount = getAccountConfigForTest(
+		"./config.json",
+		"AwsAccount",
+	) as AwsAccount; // If this function didn't error, this has to be an AwsAccount
 	const ec2Client = new EC2Client({
 		region: awsAccount.region,
 	});
@@ -125,10 +122,7 @@ describe("discovery agent tests for aws", () => {
 		let testSubnets: AwsSubnet[] | undefined = undefined;
 
 		for (const res of result) {
-			if (
-				res.tags &&
-				res.tags["osp"] === "test"
-			) {
+			if (res.tags && res.tags["osp"] === "test") {
 				testSubnets = res.subnets;
 			}
 		}

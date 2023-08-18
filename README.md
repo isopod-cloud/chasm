@@ -1,5 +1,6 @@
 # Chasm
 
+[![NPM](https://img.shields.io/npm/v/@isopod/chasm-test.svg?style=round-square)](https://npmjs.org/package/@isopod/chasm)
 [![Docker Pulls](https://badgen.net/docker/pulls/trueosiris/godaddypy?icon=docker&label=pulls)](https://hub.docker.com/r/isopod/chasm/)
 [![tested with jest](https://img.shields.io/badge/tested_with-jest-99424f.svg?logo=jest)](https://github.com/facebook/jest)
 
@@ -46,9 +47,13 @@ Enter Chasm, a tool for bridging the gaps between the clouds for you.
 
 This quickstart will walk you through the process of creating a simple Chasm-powered network: installation, defining the mesh network subnets, deploying the network, and then how to tear it down.
 
+### npm
+
+Instructions for the `npm` quickstart are provided [here](docs/npm-quickstart.md). Docker may be preferred as you do not need to install pulumi.
+
 ### Docker
 
-This project uses [docker](https://www.docker.com/). The latest image should be downloaded with:
+The following instructions are for the [docker](https://www.docker.com/) quickstart. The latest image should be downloaded with:
 
 ```sh
 docker pull isopod/chasm:main
@@ -86,54 +91,7 @@ More resources if you get stuck: How to use [Docker Desktop in WSL](https://docs
 
 ### Installing and configuring cloud CLIs
 
-Chasm uses the cloud credentials from the CLIs installed on the host machine to authenticate with the CSPs. Install the CLI for each CSP that you want involved in your meshed network, and authenticate that CLI so that it can work within your cloud environment.
-
-#### Azure
-
-1. Install by following the [Azure CLI install tutorial](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
-   - Windows users should [install for linux](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt) in their WSL distribution.
-2. Login with
-
-    ```sh
-    az login
-    ```
-
-3. If your `az` CLI is logged into multiple Azure Subscriptions, Chasm will use the one currently set to be active.  You can change that like so:
-
-    ```sh
-    az account set --subscription subscription-id-you-want-active
-    ```
-
-#### Google Cloud Platform
-
-1. Install by following the [gcloud CLI install tutorial](https://cloud.google.com/sdk/docs/install#linux)
-    - *Windows users should install for their linux distro in WSL.*
-2. Login with
-
-    ```sh
-    gcloud auth login
-    ```
-
-3. Create application default credentials
-
-    ```sh
-    gcloud auth application-default login
-    ```
-
-#### AWS
-
-1. Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-    - *Windows users should install for their linux distro in WSL.*
-
-2. Login with [short-term credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-short-term.html)
-    - Chasm uses default credentials, meaning your `~/.aws/credentials` file should have you credentials under [default], like so:
-
-        ```sh
-        [default]
-        aws_access_key_id = AKIAIOSFODNN7EXAMPLE
-        aws_secret_access_key = afasefjwqg/K7MDENG/bPxRfiCYEXAMPLEKEY
-        aws_session_token = IQoJb3JpZ2luX2IQoJb3JpZ2luX2IQoJb3JpZ2luX2IQoJb3JpZ2luX2IQoJb3JpZVERYLONGSTRINGEXAMPLE
-        ```
+Before proceeding, follow [the guide for installing and configuring cloud CLIs](docs/installing-cloud-clis.md).
 
 ## Usage
 
@@ -231,7 +189,7 @@ docker run --rm -ti \
 
 ### Meshing subnets
 
-1. Copy **_only_** the VPCs and subnets to be added to the mesh network from the output, into the VPCs section it's account in `config.json`. For example, a complete GCP account with VPCs would look like:
+1. Copy **_only_** the VPCs and subnets to be added to the mesh network from the output, into the VPCs section for it's account in `./mount/config.json`. For example, a complete GCP account with VPCs would look like:
 
 ```json
 {
@@ -355,54 +313,7 @@ _A data diagram showcasing the resources created in an AWS VPC to support connec
 
 ### Building from source
 
-This is only recommended for contributing developers.
-
-Clone this repository
-
-```sh
-git clone git@gitlab.com:isopod-cloud/chasm.git
-cd chasm
-```
-
-Install dependencies (this should be done whenever the dependencies change)
-
-```sh
-yarn install
-```
-
-Build the project (this should be done anytime the source code is changed)
-
-```sh
-yarn build
-```
-
-Run command line program
-
-```sh
-yarn start
-```
-
-Expected output:
-
-```text
-Usage: chasm <OPTION...>
-
-CLI for managing your cloud networks
-
-1. Install the cloud CLI
-2. Login to cloud CLI
-
-Commands:
-  find [options]  find all the subnets in the currently logged in accounts.
-  mesh [options]  meshes together all the subnets given in the config file.
-  help [command]  display help for command
-```
-
-Build the docker image with
-
-```sh
-yarn build && docker build . --tag chasm
-```
+Check out the instructions at [docs/building-from-source.md](./docs/building-from-source.md).
 
 ### Testing
 
@@ -412,6 +323,10 @@ You can run unit tests with:
 yarn test
 ```
 The discovery tests require a `config.json` to be set up in the base directory of the repository to run. Additonally the tests for each individual cloud will utilize the first account of its type listed in the file.
+
+### Creating a release
+
+Use the [gitlab release feature](https://gitlab.com/isopod-cloud/chasm/-/releases) to create a new semver tag. Creating a new tag will trigger ci to publish both a npm package and docker image.
 
 ## Licensing
 

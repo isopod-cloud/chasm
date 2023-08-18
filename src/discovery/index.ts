@@ -21,7 +21,7 @@ export async function getSubnets(
 				break;
 			}
 			default: {
-				void (account satisfies never) // Using account.type gives error?
+				void (account satisfies never); // Using account.type gives error?
 				return Promise.reject(new TypeError("Unsupported input type"));
 			}
 		}

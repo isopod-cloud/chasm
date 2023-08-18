@@ -5,7 +5,6 @@ import { DefaultAzureCredential } from "@azure/identity";
 import { NetworkManagementClient, VirtualNetwork } from "@azure/arm-network";
 import { getAccountConfigForTest } from "../utils";
 
-
 // Azure Helper functions
 async function createAzureTestFixturesDA(
 	rgClient: ResourceManagementClient,
@@ -55,19 +54,21 @@ async function createAzureTestFixturesDA(
 				console.log(res);
 			});
 	}
-
-};
+}
 
 async function destroyAzureTestFixturesDA(
 	rgClient: ResourceManagementClient,
 	groupName: string,
 ): Promise<void> {
 	await rgClient.resourceGroups.beginDeleteAndWait(groupName);
-};
+}
 
 describe("discovery agent tests for azure", () => {
 	const numSubnets = 3;
-	const azureAccount = getAccountConfigForTest("./config.json", "AzureAccount") as AzureAccount; // If this function didn't error, this has to be an AzureAccount
+	const azureAccount = getAccountConfigForTest(
+		"./config.json",
+		"AzureAccount",
+	) as AzureAccount; // If this function didn't error, this has to be an AzureAccount
 	const subId = azureAccount.subscriptionId;
 	const creds = new DefaultAzureCredential();
 	const rgClient = new ResourceManagementClient(creds, subId);
@@ -91,7 +92,10 @@ describe("discovery agent tests for azure", () => {
 		let testSubnets: AzureSubnet[] | undefined = undefined;
 
 		for (const res of result) {
-			if (res.resourceGroupName === `/subscriptions/${subId}/resourceGroups/test-rg`) {
+			if (
+				res.resourceGroupName ===
+				`/subscriptions/${subId}/resourceGroups/test-rg`
+			) {
 				testSubnets = res.subnets;
 			}
 		}
