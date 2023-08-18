@@ -535,59 +535,61 @@ async function planMeshInternal(
 		}
 	}
 
-	// Do the security groups
-	for (const targetAccount of phase1Result) {
-		for (const targetVpcId of Object.keys(targetAccount.vpcs)) {
-			// This silly step is required because the static analyzer evaluates
-			// the type of Object.values(dstAccount.vpcs) to be `any`. So we bounce
-			// through the key lookup instead.
-			const targetVpc = targetAccount.vpcs[targetVpcId];
-			const targetCidrs: string[] = [];
-			for (const dstAccount of phase1Result) {
-				for (const dstVpcId of Object.keys(dstAccount.vpcs)) {
-					const dstVpc = dstAccount.vpcs[dstVpcId];
-					if (dstVpc === targetVpc) continue;
-					targetCidrs.concat(dstVpc.cidrs);
-				}
-			}
-			switch (targetAccount.type) {
-				case AccountType.AwsAccount: {
-					if (targetVpc.vpc.type !== "AwsVpc") {
-						throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+	if (meshArgs.makeSecurityGroups) {
+		// Do the security groups
+		for (const targetAccount of phase1Result) {
+			for (const targetVpcId of Object.keys(targetAccount.vpcs)) {
+				// This silly step is required because the static analyzer evaluates
+				// the type of Object.values(dstAccount.vpcs) to be `any`. So we bounce
+				// through the key lookup instead.
+				const targetVpc = targetAccount.vpcs[targetVpcId];
+				const targetCidrs: string[] = [];
+				for (const dstAccount of phase1Result) {
+					for (const dstVpcId of Object.keys(dstAccount.vpcs)) {
+						const dstVpc = dstAccount.vpcs[dstVpcId];
+						if (dstVpc === targetVpc) continue;
+						targetCidrs.concat(dstVpc.cidrs);
 					}
-					awsMakeSecurityGroup(
-						undefined, // pending multiaccount support
-						targetVpc.vpc,
-						{ ...targetVpc.vpc.tags }, // Pending more complete tags
-						targetCidrs
-					)
-					break;
 				}
-				case AccountType.AzureAccount: {
-					if (targetVpc.vpc.type !== "AzureVpc") {
-						throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+				switch (targetAccount.type) {
+					case AccountType.AwsAccount: {
+						if (targetVpc.vpc.type !== "AwsVpc") {
+							throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+						}
+						awsMakeSecurityGroup(
+							undefined, // pending multiaccount support
+							targetVpc.vpc,
+							{ ...targetVpc.vpc.tags }, // Pending more complete tags
+							targetCidrs
+						)
+						break;
 					}
-					azureMakeSecurityGroup(
-						undefined,
-						targetVpc.vpc,
-						{ ...targetVpc.vpc.tags },
-						targetCidrs
-					)
-					break;
-				}
-				case AccountType.GcpAccount: {
-					if (targetVpc.vpc.type !== "GcpVpc") {
-						throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+					case AccountType.AzureAccount: {
+						if (targetVpc.vpc.type !== "AzureVpc") {
+							throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+						}
+						azureMakeSecurityGroup(
+							undefined,
+							targetVpc.vpc,
+							{ ...targetVpc.vpc.tags },
+							targetCidrs
+						)
+						break;
 					}
-					gcpMakeFirewallPolicy(
-						undefined,
-						targetVpc.vpc,
-						targetCidrs
-					)
-					break;
-				}
-				default: {
-					(targetAccount.type satisfies never)
+					case AccountType.GcpAccount: {
+						if (targetVpc.vpc.type !== "GcpVpc") {
+							throw new Error("Unexpected non-AWS VPCs inside AWS Account.")
+						}
+						gcpMakeFirewallPolicy(
+							undefined,
+							targetVpc.vpc,
+							targetCidrs
+						)
+						break;
+					}
+					default: {
+						targetAccount satisfies never;
+					}
 				}
 			}
 		}

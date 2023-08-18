@@ -23,6 +23,7 @@ export const ToSynthesize = z.object({
 	meshName: z.string(),
 	accounts: CloudAccount.array(),
 	psk: z.string(),
+	makeSecurityGroups: z.boolean(),
 	projectName: z.string(),
 	workDir: z.string(),
 	pulumiLogFile: z.string(),

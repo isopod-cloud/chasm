@@ -74,6 +74,10 @@ async function main() {
 			"-F, --pulumiLogFile <pulumi-log-file>",
 			'output file for any pulumi logs resulting from meshing (default: "<path>/pulumi-logs.out" where <path> was specified by --workDir)',
 		)
+		.option(
+			"-s, --makeSecurityGroups",
+			"Enable the generation of security groups",
+		)
 		.action(async (options) => {
 			if (isPresent(options.name) && isPresent(options.config)) {
 				const fromConfigFile = await readFromConfigFile(options.config);
@@ -109,6 +113,7 @@ async function main() {
 					projectName,
 					workDir,
 					pulumiLogFile,
+					makeSecurityGroups: options.makeSecurityGroups ? true : false,
 				});
 
 				if (isPresent(options.url)) {

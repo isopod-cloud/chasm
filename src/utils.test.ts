@@ -123,6 +123,7 @@ describe("workDir", () => {
 			psk: "",
 			workDir,
 			pulumiLogFile: path.join(workDir, "pulumi-logs.out"),
+			makeSecurityGroups: false,
 		};
 
 		const stream = getPulumiOutputStream(args);
@@ -266,6 +267,7 @@ describe("workDir", () => {
 				path.join(workDir, "derived"),
 				"pulumi-logs.out",
 			),
+			makeSecurityGroups: false,
 		};
 
 		const opts = prepareWorkspaceOptions(args);
@@ -284,6 +286,7 @@ describe("workDir", () => {
 			psk: "",
 			workDir,
 			pulumiLogFile: path.join(workDir, "pulumi-logs.out"),
+			makeSecurityGroups: false,
 		};
 
 		const opts = prepareWorkspaceOptions(args);
@@ -306,6 +309,7 @@ describe("workDir", () => {
 				path.join(workDir, "dervied"),
 				"pulumi-logs.out",
 			),
+			makeSecurityGroups: false,
 			url: "file://" + path.join(urlDir, "derived"),
 		};
 
@@ -336,6 +340,7 @@ describe("workDir", () => {
 				path.join(workDir, "dervied"),
 				"pulumi-logs.out",
 			),
+			makeSecurityGroups: false,
 			url: "file://" + path.join("urlDir", "derived"),
 		};
 
@@ -369,6 +374,7 @@ describe("workDir", () => {
 				path.join(workDir, "dervied"),
 				"pulumi-logs.out",
 			),
+			makeSecurityGroups: false,
 			url: "s3://" + path.join(urlDir, "derived"),
 		};
 
