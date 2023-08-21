@@ -75,6 +75,10 @@
 		"watch:brk": "NODE_OPTIONS=--inspect-brk yarn watch",
 		"watch:inspect": "NODE_OPTIONS=--inspect yarn watch",
 		"test": "jest",
+		"test:all": "jest",
+		"test:unit": "jest unit",
+		"test:int": "jest int",
+		"test:integration": "jest int",
 		"fmt": "prettier --write ./src",
 		"lint": "eslint --fix --max-warnings=0 ./src/**.ts"
 	},
