@@ -79,6 +79,7 @@ test docker build:
         - Dockerfile
         - docker/scripts/*
       when: manual
+      allow_failure: true
 
 build docker:
   needs:
