@@ -78,6 +78,7 @@ test docker build:
       - Dockerfile
       - docker/scripts/*
 
+
 build docker:
   needs:
     - compile typescript to javascript
