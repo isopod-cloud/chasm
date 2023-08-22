@@ -74,10 +74,9 @@ pages:
 test docker build:
   script: docker build -t isopod/chasm:$CI_COMMIT_REF_SLUG .
   only:
-    changes:  # Include the job and set to when: manual if any of the following paths match a modified file.
+    changes:
       - Dockerfile
       - docker/scripts/*
-    when: manual
 
 build docker:
   needs:
