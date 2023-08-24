@@ -36,7 +36,7 @@ test:
     - install
   stage: test
   script:
-    - yarn test --verbose
+    - yarn test:unit --verbose
   coverage: "/All\\sfiles.*?\\s+(\\d+.\\d+)/"
   artifacts:
     reports:
