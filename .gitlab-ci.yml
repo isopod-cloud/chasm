@@ -78,6 +78,7 @@ pages:
 
 test docker build:
   script: docker build -t isopod/chasm:$CI_COMMIT_REF_SLUG .
+  stage: compile
   image: docker:$DOCKER_CONTAINER_VERSION
   needs:
   - compile typescript to javascript
