@@ -1,16 +1,18 @@
 import * as pulumi from "@pulumi/pulumi";
 
+let awsCounter = 0;
 let forwardingCounter = 0;
 
 pulumi.runtime.setMocks({
     newResource: function(args: pulumi.runtime.MockResourceArgs): {id: string, state: any} {
 		switch (args.type) {
             case "aws:ec2/vpnGateway:VpnGateway":
+				awsCounter++;
                 return {
-                    id: "sg-12345678",
+                    id: `sg-111111-${awsCounter}`,
                     state: {
                         ...args.inputs,
-                        id: "sg-12345678",
+                        id: `sg-111111-${awsCounter}`,
                         name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
                     },
                 };
@@ -79,7 +81,10 @@ pulumi.runtime.setMocks({
 					...args.inputs
 				};
 			case "gcp:compute/getNetworkOutput:getNetworkOutput":
-				return args.inputs;
+				return {
+					id: "network-5678-1234-abcd-90ef",
+					...args.inputs
+				};
 			default:
                 return args.inputs;
         }
@@ -100,6 +105,9 @@ import {
 	GcpPhaseOneVpc,
 	PhaseOneAccount,
 	buildPhase1Result,
+	GcpPhaseOneResource,
+	AzurePhaseOneResource,
+	AwsPhaseOneResource,
 } from "./phase-one";
 import { isPresent } from "../utils";
 
@@ -320,6 +328,17 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
+	const awsVpc1Resources = //: AwsPhaseOneResource =
+	{
+		vpnGateway: {
+			id: pulumi.output("sg-111111-1"),
+			vpcId: pulumi.output("vpc-12345678"),
+			tags: pulumi.output({
+				"managed-by": "chasm",
+			}),
+		},
+	};
+
 	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
 		type: VpcType.AwsVpc,
 		resource: null,
@@ -369,6 +388,17 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
+	const awsVpc2Resources = //: AwsPhaseOneResource =
+	{
+		vpnGateway: {
+			id: pulumi.output("sg-111111-2"),
+			vpcId: pulumi.output("vpc-87654321"),
+			tags: pulumi.output({
+				"managed-by": "chasm",
+			}),
+		},
+	};
+
 	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
 		type: VpcType.GcpVpc,
 		resource: null,
@@ -400,6 +430,54 @@ describe("PhaseOneAccount", () => {
 				},
 			],
 		}),
+	};
+
+	const gcpVpcResources = //: GcpPhaseOneResource =
+	{
+		network: pulumi.output({
+			id: "network-5678-1234-abcd-90ef",
+			name: "my-project-vpc",
+		}),
+		vpnGateway: {
+			id: pulumi.output("sg-55555555"),
+			region: pulumi.output("us-west4"),
+			name: pulumi.output("a-12345678901234567"),
+		},
+		publicIp: {
+			id: pulumi.output("sg-66666666"),
+			address: pulumi.output("172.16.129.1"),
+			labels: pulumi.output({
+				"managed-by": "chasm",
+			}),
+		},
+		forwardingRules: {
+			esp: {
+				id: pulumi.output("forwarding-rule-1"),
+				name: pulumi.output("a-12345678901234567-esp"),
+				ipAddress: pulumi.output("172.16.129.1"),
+				ipProtocol: pulumi.output("ESP"),
+				region: pulumi.output("us-west4"),
+				target: pulumi.output("sg-55555555"),
+			},
+			ipsec: {
+				id: pulumi.output("forwarding-rule-2"),
+				name: pulumi.output("a-12345678901234567-ipsec"),
+				ipAddress: pulumi.output("172.16.129.1"),
+				ipProtocol: pulumi.output("UDP"),
+				region: pulumi.output("us-west4"),
+				portRange: pulumi.output("500"),
+				target: pulumi.output("sg-55555555"),
+			},
+			ipsecNat: {
+				id: pulumi.output("forwarding-rule-3"),
+				name: pulumi.output("a-12345678901234567-ipsecnat"),
+				ipAddress: pulumi.output("172.16.129.1"),
+				ipProtocol: pulumi.output("UDP"),
+				region: pulumi.output("us-west4"),
+				portRange: pulumi.output("4500"),
+				target: pulumi.output("sg-55555555"),
+			},
+		},
 	};
 
 	const azurePhaseOneVpc: AzurePhaseOneVpc = {
@@ -443,6 +521,24 @@ describe("PhaseOneAccount", () => {
 					type: "AzureSubnet",
 				},
 			],
+		},
+	};
+
+	const azureVpcResources = //: AzurePhaseOneResource =
+	{
+		gatewaySubnet: pulumi.output({
+			id: "subnet-1234-abcd-5678-90ef",
+		}),
+		publicIp: {
+			id: pulumi.output("sg-22222222"),
+			ipAddress: pulumi.output("10.0.2.2"),
+		},
+		vpnGateway: {
+			id: pulumi.output("sg-87654321"),
+			name: pulumi.output("vpn-gateway//subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678"),
+			tags: pulumi.output({
+				"managed-by": "chasm",
+			}),
 		},
 	};
 
