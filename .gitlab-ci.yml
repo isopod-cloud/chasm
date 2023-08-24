@@ -56,13 +56,18 @@ compile typescript to javascript:
 pages:
   needs: []
   stage: compile
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    changes:
+      - README.md
+      - docs/*
   before_script:
     - apk add --update mdbook
     - |
       if test "${CI_DEFAULT_BRANCH}" == "${CI_COMMIT_BRANCH}"; then
         export PATH_SUFFIX=""
       else
-        export PATH_SUFFIX="/${CI_COMMIT_REF_SLUG}"
+        export PATH_SUFFIX="/${CI_COMMIT_SHA}"
       fi
   script:
     - mdbook build --dest-dir "public${PATH_SUFFIX}"
@@ -74,16 +79,19 @@ pages:
 test docker build:
   script: docker build -t isopod/chasm:$CI_COMMIT_REF_SLUG .
   image: docker:$DOCKER_CONTAINER_VERSION
+  needs:
+  - compile typescript to javascript
+  - install
   services:
     - docker:$DOCKER_CONTAINER_VERSION-dind
   variables:
     DOCKER_CONTAINER_VERSION: 20.10.18
   rules:
     - if: $CI_COMMIT_BRANCH
-      changes:  # Include the job and set to when: manual if any of the following paths match a modified file.
+      changes:  # Include the job and set to when: always if any of the following paths match a modified file.
         - Dockerfile
         - docker/scripts/*
-      when: manual
+      when: always
 
 
 build docker:
