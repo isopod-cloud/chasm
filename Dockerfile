@@ -13,6 +13,7 @@ RUN apt-get update \
   tini
 
 # CLI installations
+
 # AWS https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 RUN mkdir --parent /tmp/awsinstaller \
  && cd /tmp/awsinstaller \
