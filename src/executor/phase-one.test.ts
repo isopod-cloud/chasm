@@ -1,14 +1,88 @@
 import * as pulumi from "@pulumi/pulumi";
 
+let forwardingCounter = 0;
+
 pulumi.runtime.setMocks({
     newResource: function(args: pulumi.runtime.MockResourceArgs): {id: string, state: any} {
-        return {
-            id: args.inputs.name + "_id",
-            state: args.inputs,
-        };
+		switch (args.type) {
+            case "aws:ec2/vpnGateway:VpnGateway":
+                return {
+                    id: "sg-12345678",
+                    state: {
+                        ...args.inputs,
+                        id: "sg-12345678",
+                        name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
+                    },
+                };
+			case "azure:network/virtualNetworkGateway:VirtualNetworkGateway":
+				return {
+					id: "sg-87654321",
+					state: {
+						...args.inputs,
+						id: "sg-87654321",
+						name: args.inputs.name || args.name,
+					},
+				};
+			case "gcp:compute/vpnGateway:VPNGateway":
+				return {
+					id: "sg-55555555",
+					state: {
+						...args.inputs,
+						id: "sg-55555555",
+					},
+				};
+			case "azure:network/publicIpAddress:PublicIpAddress":
+				return {
+					id: "sg-22222222",
+					state: {
+						...args.inputs,
+						id: "sg-22222222",
+						ipAddress: "10.0.2.2",
+					},
+				};
+			case "gcp:compute/address:Address":
+				return {
+					id: "sg-66666666",
+					state: {
+						...args.inputs,
+						id: "sg-66666666",
+						labels: args.inputs.tags,
+						address: "172.16.129.1",
+					},
+				};
+			case "gcp:compute/forwardingRule:ForwardingRule":
+				forwardingCounter++;
+				return {
+					id: `forwarding-rule-${forwardingCounter}`,
+					state: {
+						...args.inputs,
+						id: `forwarding-rule-${forwardingCounter}`,
+					},
+				};
+		default:
+			return {
+				id: "unknown", //args.inputs.name + "_id",
+				state: args.inputs,
+			};
+		}
     },
     call: function(args: pulumi.runtime.MockCallArgs) {
-        return args.inputs;
+        switch (args.token) {
+            case "aws:ec2/getAmi:getAmi":
+                return {
+                    "architecture": "x86_64",
+                    "id": "ami-0eb1f3cdeeb8eed2a",
+                };
+			case "azure:network/getSubnetOutput:getSubnetOutput":
+				return {
+					id: "subnet-1234-abcd-5678-90ef",
+					...args.inputs
+				};
+			case "gcp:compute/getNetworkOutput:getNetworkOutput":
+				return args.inputs;
+			default:
+                return args.inputs;
+        }
     },
 },
   "project",
@@ -20,6 +94,7 @@ import * as aws from "@pulumi/aws";
 import { AwsVpc, Config, GcpSubnet, GcpVpc } from "../types/new-types";
 import {
 	AccountType,
+	VpcType,
 	AwsPhaseOneVpc,
 	AzurePhaseOneVpc,
 	GcpPhaseOneVpc,
@@ -160,6 +235,7 @@ describe("PhaseOneAccount", () => {
 	];
 
 	const awsPhaseOneVpc1: AwsPhaseOneVpc = {
+		type: VpcType.AwsVpc,
 		resource: null,
 		cidrs: [
 			"172.1.1.0/24",
@@ -245,6 +321,7 @@ describe("PhaseOneAccount", () => {
 	};
 
 	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
+		type: VpcType.AwsVpc,
 		resource: null,
 		cidrs: ["172.2.1.0/24", "172.2.2.0/24", "172.2.3.0/24"],
 		subnets: [
@@ -293,6 +370,7 @@ describe("PhaseOneAccount", () => {
 	};
 
 	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
+		type: VpcType.GcpVpc,
 		resource: null,
 		region: "us-west4",
 		vpnName: "12345678901234567",
@@ -325,6 +403,7 @@ describe("PhaseOneAccount", () => {
 	};
 
 	const azurePhaseOneVpc: AzurePhaseOneVpc = {
+		type: VpcType.AzureVpc,
 		resource: null,
 		vpcName: "test-resource-rg-vnet-12345678",
 		resourceGroupNameTruncated: "test-resource-rg",
@@ -413,11 +492,11 @@ describe("PhaseOneAccount", () => {
 	);
 
 	it("vpnGateway", () => {
-		pulumi.all([vpnGateway.tags, vpnGateway.vpcId]).apply(([tags, vpcId]) => {
+		pulumi.all([vpnGateway.tags, vpnGateway.id]).apply(([tags, id]) => {
 			expect(isPresent(tags?.a)).toBeTruthy();
 			expect(isPresent(tags?.b)).toBeTruthy();
 			expect(isPresent(tags?.c)).toBeFalsy();
-			expect(vpcId).toBe("id-something");
+			expect(id).toBe("sg-12345678");
 		});
 	});
 });
