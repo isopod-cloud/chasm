@@ -8,7 +8,7 @@
 
 ## Description
 
-Chasms are what many businesses run into when trying to find the skill-sets and knowledge to navigate between the different cloud provider's environments.  This can include APIs, tools, languages, networking architectures, and even having visibility into what subnets you might have in each cloud environment.  When what you really want is to be able to get your data from one place to the another that you need... crossing that chasm.
+Chasms are what many businesses run into when trying to find the skill-sets and knowledge to navigate between the different cloud provider's environments. This can include APIs, tools, languages, networking architectures, and even having visibility into what subnets you might have in each cloud environment. When what you really want is to be able to get your data from one place to the another that you need... crossing that chasm.
 
 The process of creating [IPsec] tunnels between [virtual private clouds](https://en.wikipedia.org/wiki/Virtual_private_cloud) (VPCs) is different in each Cloud Service Provider (CSP), and it can be difficult to automate due to how IP addressing is handled (particularly for inter-cloud connectivity), eventual consistency in the standard CSPs APIs, and some dizzying circular dependencies to navigate through.
 
@@ -67,21 +67,21 @@ _Don't have docker installed? Install Docker Desktop On [Mac](https://docs.docke
 
 1. install a distro:
 
-    ```sh
-    wsl --install -d Ubuntu
-    ```
+   ```sh
+   wsl --install -d Ubuntu
+   ```
 
 2. Ensure the WSL version is 2
 
-    ```sh
-    wsl --set-version 2 Ubuntu
-    ```
+   ```sh
+   wsl --set-version 2 Ubuntu
+   ```
 
 3. Set to default disto
 
-    ```sh
-    wsl --set-default Ubuntu
-    ```
+   ```sh
+   wsl --set-default Ubuntu
+   ```
 
 4. In Docker Desktop, go to Resources, WSL Integration and make sure the checkbox for Enable Integration with my default WSL distro is checked.
 
@@ -120,7 +120,7 @@ The config file determines:
 
 1. Which clouds are scraped for subnets (from the "accounts" field)
 2. Which subnets are meshed together (from the "subnets" field within the "VPCs" field for each "account")
-    - We do not need to specify "VPCs" in order to run the scrape functionality. It is only used for meshing.
+   - We do not need to specify "VPCs" in order to run the scrape functionality. It is only used for meshing.
 
 Copy the example config file into `./mount/config.json`.
 
@@ -193,25 +193,25 @@ docker run --rm -ti \
 
 ```json
 {
-    "type": "GcpAccount",
-    "id": "arbitrary-unique-id",
-    "project": "get from 'gcloud projects list'",
-    "vpcs": [
-        {
-            "id": "xxxxxxxxxxxxxxxxxx",
-            "type": "GcpVpc",
-            "projectName": "myProject",
-            "networkName": "xxxxxxxxxxxxxxxxxx-vpc",
-            "subnets": [
-                {
-                    "id": "xxxxxxxxxxxxxxxxxx",
-                    "cidr": "xxx.xxx.xxx.xxx/xx",
-                    "type": "GcpSubnet",
-                    "region": "us-west4"
-                }
-            ]
-        }
-    ]
+	"type": "GcpAccount",
+	"id": "arbitrary-unique-id",
+	"project": "get from 'gcloud projects list'",
+	"vpcs": [
+		{
+			"id": "xxxxxxxxxxxxxxxxxx",
+			"type": "GcpVpc",
+			"projectName": "myProject",
+			"networkName": "xxxxxxxxxxxxxxxxxx-vpc",
+			"subnets": [
+				{
+					"id": "xxxxxxxxxxxxxxxxxx",
+					"cidr": "xxx.xxx.xxx.xxx/xx",
+					"type": "GcpSubnet",
+					"region": "us-west4"
+				}
+			]
+		}
+	]
 }
 ```
 
@@ -317,12 +317,35 @@ Check out the instructions at [docs/building-from-source.md](./docs/building-fro
 
 ### Testing
 
+#### Unit
+
 You can run unit tests with:
+
+```sh
+yarn test:unit
+```
+
+#### Integration
+
+The discovery tests require a `config.json` to be set up in the base directory of the repository to run. Additonally the tests for each individual cloud will utilize the first account of its type listed in the file. You can run integration tests with:
+
+```sh
+yarn test:integration
+```
+
+#### All
+
+You can run all tests with:
+
+```sh
+yarn test:all
+```
+
+Or:
 
 ```sh
 yarn test
 ```
-The discovery tests require a `config.json` to be set up in the base directory of the repository to run. Additonally the tests for each individual cloud will utilize the first account of its type listed in the file.
 
 ### Creating a release
 

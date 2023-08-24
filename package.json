@@ -74,7 +74,11 @@
 		"watch": "node-dev --respawn --notify=false src/app.ts | yarn run pino-pretty",
 		"watch:brk": "NODE_OPTIONS=--inspect-brk yarn watch",
 		"watch:inspect": "NODE_OPTIONS=--inspect yarn watch",
-		"test": "jest",
+		"test": "jest unit && jest int",
+		"test:all": "jest unit && jest int",
+		"test:unit": "jest unit",
+		"test:int": "jest int",
+		"test:integration": "jest int",
 		"fmt": "prettier --write ./src",
 		"lint": "eslint --fix --max-warnings=0 ./src/**.ts"
 	},
