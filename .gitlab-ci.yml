@@ -58,9 +58,9 @@ pages:
   stage: compile
   rules:
     - if: $CI_COMMIT_BRANCH
-    changes:
-      - README.md
-      - docs/*
+      changes:
+        - README.md
+        - docs/*
   before_script:
     - apk add --update mdbook
     - |
