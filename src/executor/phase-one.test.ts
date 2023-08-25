@@ -16,7 +16,7 @@ pulumi.runtime.setMocks({
                         name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
                     },
                 };
-			case "azure:network/virtualNetworkGateway:VirtualNetworkGateway":
+			case "azure-native:network:VirtualNetworkGateway":
 				return {
 					id: "sg-87654321",
 					state: {
@@ -33,7 +33,7 @@ pulumi.runtime.setMocks({
 						id: "sg-55555555",
 					},
 				};
-			case "azure:network/publicIpAddress:PublicIpAddress":
+			case "azure-native:network:PublicIPAddress":
 				return {
 					id: "sg-22222222",
 					state: {
@@ -79,7 +79,7 @@ pulumi.runtime.setMocks({
                     "architecture": "x86_64",
                     "id": "ami-0eb1f3cdeeb8eed2a",
                 };
-			case "azure:network/getSubnetOutput:getSubnetOutput":
+			case "azure-native:network:getSubnet":
 				return {
 					id: "subnet-1234-abcd-5678-90ef",
 					...args.inputs
@@ -614,18 +614,14 @@ describe("PhaseOneAccount", () => {
 		// not via expect() statements. We can't use if-clauses in this test because it violates the compile-time rule for no
 		// conditional expects. Therefore, we use the "as AwsPhaseOneResource" to get the same type we KNOW we
 		// would see for resource via an if-clause.
-		if (result[0].vpcs["vpc-12345678"].type == VpcType.AwsVpc && isPresent(result[0].vpcs["vpc-12345678"].resource)) {
-			const resource1 = result[0].vpcs["vpc-12345678"].resource;
-			pulumi.all([awsVpc1Resources.vpnGateway.id, resource1?.vpnGateway.id, awsVpc1Resources.vpnGateway.vpcId, resource1?.vpnGateway.vpcId, awsVpc1Resources.vpnGateway.tags, resource1?.vpnGateway.tags]).apply(([
-				expectedId, actualId, expectedVpcId, actualVpcId, expectedTags, actualTags
-			]) => {
-				expect(actualId).toBe(expectedId);
-				expect(actualVpcId).toBe(expectedVpcId);
-				expect(actualTags).toMatchObject(expectedTags);
-			});
-		} else {
-			throw new Error(`result[0].vpcs["vpc-12345678"] needs to be of type AwsVpc`);
-		}
+		const resource1 = result[0].vpcs["vpc-12345678"].resource as AwsPhaseOneResource;
+		pulumi.all([awsVpc1Resources.vpnGateway.id, resource1?.vpnGateway.id, awsVpc1Resources.vpnGateway.vpcId, resource1?.vpnGateway.vpcId, awsVpc1Resources.vpnGateway.tags, resource1?.vpnGateway.tags]).apply(([
+			expectedId, actualId, expectedVpcId, actualVpcId, expectedTags, actualTags
+		]) => {
+			expect(actualId).toBe(expectedId);
+			expect(actualVpcId).toBe(expectedVpcId);
+			expect(actualTags).toMatchObject(expectedTags);
+		});
 
 		const resource2 = result[0].vpcs["vpc-87654321"].resource as AwsPhaseOneResource;
 		pulumi.all([awsVpc2Resources.vpnGateway.id, resource2?.vpnGateway.id, awsVpc2Resources.vpnGateway.vpcId, resource2?.vpnGateway.vpcId, awsVpc2Resources.vpnGateway.tags, resource2?.vpnGateway.tags]).apply(([
@@ -740,6 +736,42 @@ describe("PhaseOneAccount", () => {
 			expect(actualForwardingRulesIpSecNatRegion).toBe(expectedForwardingRulesIpSecNatRegion);
 			expect(actualForwardingRulesIpSecNatTarget).toBe(expectedForwardingRulesIpSecNatTarget);
 		});
-	});
 
+		expect(result[2].type).toBe(AccountType.AzureAccount);
+		expect(result[2].vpcs["/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678"].type).toBe(VpcType.AzureVpc);
+		const resourceAzure = result[2].vpcs["/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678"].resource as AzurePhaseOneResource;
+
+		pulumi.all([
+			azureVpcResources.gatewaySubnet, resourceAzure?.gatewaySubnet,
+		]).apply(([
+			expectedGatewaySubnet, actualGatewaySubnet
+		]) => {
+			expect(actualGatewaySubnet).toMatchObject(expectedGatewaySubnet);
+		});
+
+		pulumi.all([
+			azureVpcResources.publicIp.id, resourceAzure?.publicIp.id,
+			azureVpcResources.publicIp.ipAddress, resourceAzure?.publicIp.ipAddress,
+		]).apply(([
+			expectedPublicIpId,        actualPublicIpId,
+			expectedPublicIpAddress,   actualPublicIpAddress,
+		]) => {
+			expect(actualPublicIpId).toBe(expectedPublicIpId);
+			expect(actualPublicIpAddress).toBe(expectedPublicIpAddress);
+		});
+
+		pulumi.all([
+			azureVpcResources.vpnGateway.id, resourceAzure?.vpnGateway.id,
+			azureVpcResources.vpnGateway.name, resourceAzure?.vpnGateway.name,
+			azureVpcResources.vpnGateway.tags, resourceAzure?.vpnGateway.tags,
+		]).apply(([
+			expectedVpnGatewayId,      actualVpnGatewayId,
+			expectedVpnGatewayName,    actualVpnGatewayName,
+			expectedVpnGatewayTags,    actualVpnGatewayTags,
+		]) => {
+			expect(actualVpnGatewayId).toBe(expectedVpnGatewayId);
+			expect(actualVpnGatewayName).toBe(expectedVpnGatewayName);
+			expect(actualVpnGatewayTags).toMatchObject(expectedVpnGatewayTags);
+		});
+	});
 });
