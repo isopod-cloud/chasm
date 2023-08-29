@@ -59,6 +59,7 @@ pulumi.runtime.setMocks({
 					state: {
 						...args.inputs,
 						id: `forwarding-rule-${forwardingCounter}`,
+						// portRange: isPresent(args.inputs.portRange) ? args.inputs.portRange : undefined,
 					},
 				};
 		default:
@@ -103,6 +104,11 @@ pulumi.runtime.setMocks({
   /* preview = */ false,
 );
 
+// Convert a pulumi.Output to a promise of the same type.
+function promiseOf<T>(output: pulumi.Output<T>): Promise<T> {
+    return new Promise(resolve => output.apply(resolve));
+}
+
 import * as aws from "@pulumi/aws";
 import { AwsVpc, Config, GcpSubnet, GcpVpc } from "../types/new-types";
 import {
@@ -118,7 +124,163 @@ import {
 	AwsPhaseOneResource,
 } from "./phase-one";
 import { isPresent } from "../utils";
-import { errorMonitor } from "events";
+
+function outputOnOutsideAws(resource: AwsPhaseOneResource) {
+	return pulumi.all([resource.vpnGateway.id, resource.vpnGateway.vpcId, resource.vpnGateway.tags]).apply(([
+		id, vpcId, tags
+	]) => {
+		return pulumi.output({
+			vpnGateway: {
+				id,
+				vpcId,
+				tags
+			},
+		});
+	});
+}
+
+function outputOnOutsideGcp(resource: GcpPhaseOneResource) {
+	// NOTE: pulumi.all() and apply() have a cap for max # of static parameters you can pass into
+	// them. Therefore, we build one object just with the forwardingRules and pass that into a
+	// subsequent invocation on pulumi.all() and apply() using the remainder of the attributes.
+	// This is the simplest way to work around this limit.
+	const forwardingRules = pulumi.all([
+		resource.forwardingRules.esp.id,
+		resource.forwardingRules.esp.name,
+		resource.forwardingRules.esp.ipAddress,
+		resource.forwardingRules.esp.ipProtocol,
+		resource.forwardingRules.esp.region,
+		resource.forwardingRules.esp.target,
+		resource.forwardingRules.esp.portRange,
+
+		resource.forwardingRules.ipsec.id,
+		resource.forwardingRules.ipsec.name,
+		resource.forwardingRules.ipsec.ipAddress,
+		resource.forwardingRules.ipsec.ipProtocol,
+		resource.forwardingRules.ipsec.region,
+		resource.forwardingRules.ipsec.target,
+		resource.forwardingRules.ipsec.portRange,
+
+		resource.forwardingRules.ipsecNat.id,
+		resource.forwardingRules.ipsecNat.name,
+		resource.forwardingRules.ipsecNat.ipAddress,
+		resource.forwardingRules.ipsecNat.ipProtocol,
+		resource.forwardingRules.ipsecNat.region,
+		resource.forwardingRules.ipsecNat.target,
+		resource.forwardingRules.ipsecNat.portRange,
+
+	]).apply(([
+		forwardingRulesEspId,
+		forwardingRulesEspName,
+		forwardingRulesEspIpAddress,
+		forwardingRulesEspIpProtocol,
+		forwardingRulesEspRegion,
+		forwardingRulesEspTarget,
+		forwardingRulesEspPortRange,
+
+		forwardingRulesIpSecId,
+		forwardingRulesIpSecName,
+		forwardingRulesIpSecIpAddress,
+		forwardingRulesIpSecIpProtocol,
+		forwardingRulesIpSecRegion,
+		forwardingRulesIpSecTarget,
+		forwardingRulesIpSecPortRange,
+
+		forwardingRulesIpSecNatId,
+		forwardingRulesIpSecNatName,
+		forwardingRulesIpSecNatIpAddress,
+		forwardingRulesIpSecNatIpProtocol,
+		forwardingRulesIpSecNatRegion,
+		forwardingRulesIpSecNatTarget,
+		forwardingRulesIpSecNatPortRange,
+	]) => {
+		return pulumi.output({
+			esp: {
+				id: forwardingRulesEspId,
+				name: forwardingRulesEspName,
+				ipAddress: forwardingRulesEspIpAddress,
+				ipProtocol: forwardingRulesEspIpProtocol,
+				region: forwardingRulesEspRegion,
+				target: forwardingRulesEspTarget,
+				portRange: forwardingRulesEspPortRange,
+			},
+			ipSec: {
+				id: forwardingRulesIpSecId,
+				name: forwardingRulesIpSecName,
+				ipAddress: forwardingRulesIpSecIpAddress,
+				ipProtocol: forwardingRulesIpSecIpProtocol,
+				region: forwardingRulesIpSecRegion,
+				target: forwardingRulesIpSecTarget,
+				portRange: forwardingRulesIpSecPortRange,
+			},
+			ipSecNat: {
+				id: forwardingRulesIpSecNatId,
+				name: forwardingRulesIpSecNatName,
+				ipAddress: forwardingRulesIpSecNatIpAddress,
+				ipProtocol: forwardingRulesIpSecNatIpProtocol,
+				region: forwardingRulesIpSecNatRegion,
+				target: forwardingRulesIpSecNatTarget,
+				portRange: forwardingRulesIpSecNatPortRange,
+			},
+		});
+	});
+
+	return pulumi.all([
+		resource.network,
+		resource.vpnGateway.id,
+		resource.vpnGateway.region,
+		resource.vpnGateway.name,
+		resource.publicIp.id,
+		resource.publicIp.address,
+		resource.publicIp.labels,
+		forwardingRules,
+	]).apply(([
+		network,
+		vpnGatewayId,
+		vpnGatewayRegion,
+		vpnGatewayName,
+		publicIpId,
+		publicIpAddress,
+		publicIpLabels,
+		forwardingRules,
+	]) => {
+		return pulumi.output({
+			network,
+			vpnGateway: {
+				id: vpnGatewayId,
+				region: vpnGatewayRegion,
+				name: vpnGatewayName
+			},
+			publicIp: {
+				id: publicIpId,
+				address: publicIpAddress,
+				labels: publicIpLabels,
+			},
+			// NOTE: Only esp attribute is preserved if forwardingRules shorthand is used here, not
+			// sure why. To make sure ipsec and ipsecNat are preserved too, we name explicitly name
+			// all 3 outer object attributes we care about.
+			forwardingRules: {
+				esp: forwardingRules.esp,
+				ipsec: forwardingRules.ipSec,
+				ipsecNat: forwardingRules.ipSecNat,
+			},
+		});
+	});
+}
+
+// function outputOnOutsideAzure(resource: AzurePhaseOneResource) {
+// 	pulumi.all([resource.vpnGateway.id, resource.vpnGateway.vpcId, resource.vpnGateway.tags]).apply(([
+// 		id, vpcId, tags
+// 	]) => {
+// 		return pulumi.output({
+// 			vpnGateway: {
+// 				id,
+// 				vpcId,
+// 				tags
+// 			},
+// 		});
+// 	});
+// }
 
 describe("PhaseOneAccount", () => {
 	const config: Config = [
@@ -339,11 +501,17 @@ describe("PhaseOneAccount", () => {
 	const awsVpc1Resources = //: AwsPhaseOneResource =
 	{
 		vpnGateway: {
-			id: pulumi.output("sg-111111-1"),
-			vpcId: pulumi.output("vpc-12345678"),
-			tags: pulumi.output({
+			id: "sg-111111-1",
+			vpcId: "vpc-12345678",
+			tags: {
 				"managed-by": "chasm",
-			}),
+			},
+
+			// id: pulumi.output("sg-111111-1"),
+			// vpcId: pulumi.output("vpc-12345678"),
+			// tags: pulumi.output({
+			// 	"managed-by": "chasm",
+			// }),
 		},
 	};
 
@@ -398,11 +566,17 @@ describe("PhaseOneAccount", () => {
 	const awsVpc2Resources = //: AwsPhaseOneResource =
 	{
 		vpnGateway: {
-			id: pulumi.output("sg-111111-2"),
-			vpcId: pulumi.output("vpc-87654321"),
-			tags: pulumi.output({
+			id: "sg-111111-2",
+			vpcId: "vpc-87654321",
+			tags: {
 				"managed-by": "chasm",
-			}),
+			},
+
+			// id: pulumi.output("sg-111111-2"),
+			// vpcId: pulumi.output("vpc-87654321"),
+			// tags: pulumi.output({
+			// 	"managed-by": "chasm",
+			// }),
 		},
 	};
 
@@ -440,50 +614,95 @@ describe("PhaseOneAccount", () => {
 
 	const gcpVpcResources = //: GcpPhaseOneResource =
 	{
-		network: pulumi.output({
+		network: {
 			id: "network-5678-1234-abcd-90ef",
 			name: "my-project-vpc",
-		}),
+		},
 		vpnGateway: {
-			id: pulumi.output("sg-55555555"),
-			region: pulumi.output("us-west4"),
-			name: pulumi.output("a-12345678901234567"),
+			id: "sg-55555555",
+			region: "us-west4",
+			name: "a-12345678901234567",
 		},
 		publicIp: {
-			id: pulumi.output("sg-66666666"),
-			address: pulumi.output("172.16.129.1"),
-			labels: pulumi.output({
+			id: "sg-66666666",
+			address: "172.16.129.1",
+			labels: {
 				"managed-by": "chasm",
-			}),
+			},
 		},
 		forwardingRules: {
 			esp: {
-				id: pulumi.output("forwarding-rule-1"),
-				name: pulumi.output("a-12345678901234567-esp"),
-				ipAddress: pulumi.output("172.16.129.1"),
-				ipProtocol: pulumi.output("ESP"),
-				region: pulumi.output("us-west4"),
-				target: pulumi.output("sg-55555555"),
+				id: "forwarding-rule-1",
+				name: "a-12345678901234567-esp",
+				ipAddress: "172.16.129.1",
+				ipProtocol: "ESP",
+				region: "us-west4",
+				target: "sg-55555555",
 			},
 			ipsec: {
-				id: pulumi.output("forwarding-rule-2"),
-				name: pulumi.output("a-12345678901234567-ipsec"),
-				ipAddress: pulumi.output("172.16.129.1"),
-				ipProtocol: pulumi.output("UDP"),
-				region: pulumi.output("us-west4"),
-				portRange: pulumi.output("500"),
-				target: pulumi.output("sg-55555555"),
+				id: "forwarding-rule-2",
+				name: "a-12345678901234567-ipsec",
+				ipAddress: "172.16.129.1",
+				ipProtocol: "UDP",
+				region: "us-west4",
+				portRange: "500",
+				target: "sg-55555555",
 			},
 			ipsecNat: {
-				id: pulumi.output("forwarding-rule-3"),
-				name: pulumi.output("a-12345678901234567-ipsecnat"),
-				ipAddress: pulumi.output("172.16.129.1"),
-				ipProtocol: pulumi.output("UDP"),
-				region: pulumi.output("us-west4"),
-				portRange: pulumi.output("4500"),
-				target: pulumi.output("sg-55555555"),
+				id: "forwarding-rule-3",
+				name: "a-12345678901234567-ipsecnat",
+				ipAddress: "172.16.129.1",
+				ipProtocol: "UDP",
+				region: "us-west4",
+				portRange: "4500",
+				target: "sg-55555555",
 			},
 		},
+
+		// network: pulumi.output({
+		// 	id: "network-5678-1234-abcd-90ef",
+		// 	name: "my-project-vpc",
+		// }),
+		// vpnGateway: {
+		// 	id: pulumi.output("sg-55555555"),
+		// 	region: pulumi.output("us-west4"),
+		// 	name: pulumi.output("a-12345678901234567"),
+		// },
+		// publicIp: {
+		// 	id: pulumi.output("sg-66666666"),
+		// 	address: pulumi.output("172.16.129.1"),
+		// 	labels: pulumi.output({
+		// 		"managed-by": "chasm",
+		// 	}),
+		// },
+		// forwardingRules: {
+		// 	esp: {
+		// 		id: pulumi.output("forwarding-rule-1"),
+		// 		name: pulumi.output("a-12345678901234567-esp"),
+		// 		ipAddress: pulumi.output("172.16.129.1"),
+		// 		ipProtocol: pulumi.output("ESP"),
+		// 		region: pulumi.output("us-west4"),
+		// 		target: pulumi.output("sg-55555555"),
+		// 	},
+		// 	ipsec: {
+		// 		id: pulumi.output("forwarding-rule-2"),
+		// 		name: pulumi.output("a-12345678901234567-ipsec"),
+		// 		ipAddress: pulumi.output("172.16.129.1"),
+		// 		ipProtocol: pulumi.output("UDP"),
+		// 		region: pulumi.output("us-west4"),
+		// 		portRange: pulumi.output("500"),
+		// 		target: pulumi.output("sg-55555555"),
+		// 	},
+		// 	ipsecNat: {
+		// 		id: pulumi.output("forwarding-rule-3"),
+		// 		name: pulumi.output("a-12345678901234567-ipsecnat"),
+		// 		ipAddress: pulumi.output("172.16.129.1"),
+		// 		ipProtocol: pulumi.output("UDP"),
+		// 		region: pulumi.output("us-west4"),
+		// 		portRange: pulumi.output("4500"),
+		// 		target: pulumi.output("sg-55555555"),
+		// 	},
+		// },
 	};
 
 	const azurePhaseOneVpc = {
@@ -614,128 +833,120 @@ describe("PhaseOneAccount", () => {
 		// not via expect() statements. We can't use if-clauses in this test because it violates the compile-time rule for no
 		// conditional expects. Therefore, we use the "as AwsPhaseOneResource" to get the same type we KNOW we
 		// would see for resource via an if-clause.
-		const resource1 = result[0].vpcs["vpc-12345678"].resource as AwsPhaseOneResource;
-		pulumi.all([awsVpc1Resources.vpnGateway.id, resource1?.vpnGateway.id, awsVpc1Resources.vpnGateway.vpcId, resource1?.vpnGateway.vpcId, awsVpc1Resources.vpnGateway.tags, resource1?.vpnGateway.tags]).apply(([
-			expectedId, actualId, expectedVpcId, actualVpcId, expectedTags, actualTags
-		]) => {
-			expect(actualId).toBe(expectedId);
-			expect(actualVpcId).toBe(expectedVpcId);
-			expect(actualTags).toMatchObject(expectedTags);
-		});
-
-		const resource2 = result[0].vpcs["vpc-87654321"].resource as AwsPhaseOneResource;
-		pulumi.all([awsVpc2Resources.vpnGateway.id, resource2?.vpnGateway.id, awsVpc2Resources.vpnGateway.vpcId, resource2?.vpnGateway.vpcId, awsVpc2Resources.vpnGateway.tags, resource2?.vpnGateway.tags]).apply(([
-			expectedId, actualId, expectedVpcId, actualVpcId, expectedTags, actualTags
-		]) => {
-			expect(actualId).toBe(expectedId);
-			expect(actualVpcId).toBe(expectedVpcId);
-			expect(actualTags).toMatchObject(expectedTags);
+		const resource1 = outputOnOutsideAws(result[0].vpcs["vpc-12345678"].resource as AwsPhaseOneResource);
+		const resource2 = outputOnOutsideAws(result[0].vpcs["vpc-87654321"].resource as AwsPhaseOneResource);
+		pulumi.all([resource1, resource2]).apply(([resource1, resource2]) => {
+			expect(resource1).toMatchObject(awsVpc1Resources);
+			expect(resource2).toMatchObject(awsVpc2Resources);
 		});
 
 		expect(result[1].type).toBe(AccountType.GcpAccount);
 		expect(result[1].vpcs["12345678901234567"].type).toBe(VpcType.GcpVpc);
-		const resourceGcp = result[1].vpcs["12345678901234567"].resource as GcpPhaseOneResource;
-
-		pulumi.all([
-			gcpVpcResources.network, resourceGcp?.network,
-		]).apply(([
-			expectedNetwork, actualNetwork
-		]) => {
-			expect(actualNetwork).toMatchObject(expectedNetwork);
+		const resourceGcp = outputOnOutsideGcp(result[1].vpcs["12345678901234567"].resource as GcpPhaseOneResource);
+		pulumi.all([resourceGcp]).apply(([resource]) => {
+			expect(resource).toMatchObject(gcpVpcResources);
 		});
 
-		pulumi.all([
-			gcpVpcResources.vpnGateway.id, resourceGcp?.vpnGateway.id,
-			gcpVpcResources.vpnGateway.region, resourceGcp?.vpnGateway.region,
-			gcpVpcResources.vpnGateway.name, resourceGcp?.vpnGateway.name,
-		]).apply(([
-			expectedVpnGatewayId,      actualVpnGatewayId,
-			expectedVpnGatewayRegion,  actualVpnGatewayRegion,
-			expectedVpnGatewayName,    actualVpnGatewayName,
-		]) => {
-			expect(actualVpnGatewayId).toBe(expectedVpnGatewayId);
-			expect(actualVpnGatewayRegion).toBe(expectedVpnGatewayRegion);
-			expect(actualVpnGatewayName).toBe(expectedVpnGatewayName);
-		});
+		// pulumi.all([
+		// 	gcpVpcResources.network, resourceGcp?.network,
+		// ]).apply(([
+		// 	expectedNetwork, actualNetwork
+		// ]) => {
+		// 	expect(actualNetwork).toMatchObject(expectedNetwork);
+		// });
 
-		pulumi.all([
-			gcpVpcResources.publicIp.id, resourceGcp?.publicIp.id,
-			gcpVpcResources.publicIp.address, resourceGcp?.publicIp.address,
-			gcpVpcResources.publicIp.labels, resourceGcp?.publicIp.labels,
-		]).apply(([
-			expectedPublicIpId,        actualPublicIpId,
-			expectedPublicIpAddress,   actualPublicIpAddress,
-			expectedPublicIpLabels,    actualPublicIpLabels,
-		]) => {
-			expect(actualPublicIpId).toBe(expectedPublicIpId);
-			expect(actualPublicIpAddress).toBe(expectedPublicIpAddress);
-			expect(actualPublicIpLabels).toMatchObject(expectedPublicIpLabels);
-		});
+		// pulumi.all([
+		// 	gcpVpcResources.vpnGateway.id, resourceGcp?.vpnGateway.id,
+		// 	gcpVpcResources.vpnGateway.region, resourceGcp?.vpnGateway.region,
+		// 	gcpVpcResources.vpnGateway.name, resourceGcp?.vpnGateway.name,
+		// ]).apply(([
+		// 	expectedVpnGatewayId,      actualVpnGatewayId,
+		// 	expectedVpnGatewayRegion,  actualVpnGatewayRegion,
+		// 	expectedVpnGatewayName,    actualVpnGatewayName,
+		// ]) => {
+		// 	expect(actualVpnGatewayId).toBe(expectedVpnGatewayId);
+		// 	expect(actualVpnGatewayRegion).toBe(expectedVpnGatewayRegion);
+		// 	expect(actualVpnGatewayName).toBe(expectedVpnGatewayName);
+		// });
 
-		pulumi.all([
-			gcpVpcResources.forwardingRules.esp.id, resourceGcp?.forwardingRules.esp.id,
-			gcpVpcResources.forwardingRules.esp.name, resourceGcp?.forwardingRules.esp.name,
-			gcpVpcResources.forwardingRules.esp.ipAddress, resourceGcp?.forwardingRules.esp.ipAddress,
-			gcpVpcResources.forwardingRules.esp.ipProtocol, resourceGcp?.forwardingRules.esp.ipProtocol,
-			gcpVpcResources.forwardingRules.esp.region, resourceGcp?.forwardingRules.esp.region,
-			gcpVpcResources.forwardingRules.esp.target, resourceGcp?.forwardingRules.esp.target,
+		// pulumi.all([
+		// 	gcpVpcResources.publicIp.id, resourceGcp?.publicIp.id,
+		// 	gcpVpcResources.publicIp.address, resourceGcp?.publicIp.address,
+		// 	gcpVpcResources.publicIp.labels, resourceGcp?.publicIp.labels,
+		// ]).apply(([
+		// 	expectedPublicIpId,        actualPublicIpId,
+		// 	expectedPublicIpAddress,   actualPublicIpAddress,
+		// 	expectedPublicIpLabels,    actualPublicIpLabels,
+		// ]) => {
+		// 	expect(actualPublicIpId).toBe(expectedPublicIpId);
+		// 	expect(actualPublicIpAddress).toBe(expectedPublicIpAddress);
+		// 	expect(actualPublicIpLabels).toMatchObject(expectedPublicIpLabels);
+		// });
 
-			gcpVpcResources.forwardingRules.ipsec.id, resourceGcp?.forwardingRules.ipsec.id,
-			gcpVpcResources.forwardingRules.ipsec.name, resourceGcp?.forwardingRules.ipsec.name,
-			gcpVpcResources.forwardingRules.ipsec.ipAddress, resourceGcp?.forwardingRules.ipsec.ipAddress,
-			gcpVpcResources.forwardingRules.ipsec.ipProtocol, resourceGcp?.forwardingRules.ipsec.ipProtocol,
-			gcpVpcResources.forwardingRules.ipsec.region, resourceGcp?.forwardingRules.ipsec.region,
-			gcpVpcResources.forwardingRules.ipsec.target, resourceGcp?.forwardingRules.ipsec.target,
+		// pulumi.all([
+		// 	gcpVpcResources.forwardingRules.esp.id, resourceGcp?.forwardingRules.esp.id,
+		// 	gcpVpcResources.forwardingRules.esp.name, resourceGcp?.forwardingRules.esp.name,
+		// 	gcpVpcResources.forwardingRules.esp.ipAddress, resourceGcp?.forwardingRules.esp.ipAddress,
+		// 	gcpVpcResources.forwardingRules.esp.ipProtocol, resourceGcp?.forwardingRules.esp.ipProtocol,
+		// 	gcpVpcResources.forwardingRules.esp.region, resourceGcp?.forwardingRules.esp.region,
+		// 	gcpVpcResources.forwardingRules.esp.target, resourceGcp?.forwardingRules.esp.target,
 
-			gcpVpcResources.forwardingRules.ipsecNat.id, resourceGcp?.forwardingRules.ipsecNat.id,
-			gcpVpcResources.forwardingRules.ipsecNat.name, resourceGcp?.forwardingRules.ipsecNat.name,
-			gcpVpcResources.forwardingRules.ipsecNat.ipAddress, resourceGcp?.forwardingRules.ipsecNat.ipAddress,
-			gcpVpcResources.forwardingRules.ipsecNat.ipProtocol, resourceGcp?.forwardingRules.ipsecNat.ipProtocol,
-			gcpVpcResources.forwardingRules.ipsecNat.region, resourceGcp?.forwardingRules.ipsecNat.region,
-			gcpVpcResources.forwardingRules.ipsecNat.target, resourceGcp?.forwardingRules.ipsecNat.target,
-		]).apply(([
-			expectedForwardingRulesEspId,              actualForwardingRulesEspId,
-			expectedForwardingRulesEspName,            actualForwardingRulesEspName,
-			expectedForwardingRulesEspIpAddress,       actualForwardingRulesEspIpAddress,
-			expectedForwardingRulesEspIpProtocol,      actualForwardingRulesEspIpProtocol,
-			expectedForwardingRulesEspRegion,          actualForwardingRulesEspRegion,
-			expectedForwardingRulesEspTarget,          actualForwardingRulesEspTarget,
+		// 	gcpVpcResources.forwardingRules.ipsec.id, resourceGcp?.forwardingRules.ipsec.id,
+		// 	gcpVpcResources.forwardingRules.ipsec.name, resourceGcp?.forwardingRules.ipsec.name,
+		// 	gcpVpcResources.forwardingRules.ipsec.ipAddress, resourceGcp?.forwardingRules.ipsec.ipAddress,
+		// 	gcpVpcResources.forwardingRules.ipsec.ipProtocol, resourceGcp?.forwardingRules.ipsec.ipProtocol,
+		// 	gcpVpcResources.forwardingRules.ipsec.region, resourceGcp?.forwardingRules.ipsec.region,
+		// 	gcpVpcResources.forwardingRules.ipsec.target, resourceGcp?.forwardingRules.ipsec.target,
 
-			expectedForwardingRulesIpSecId,            actualForwardingRulesIpSecId,
-			expectedForwardingRulesIpSecName,          actualForwardingRulesIpSecName,
-			expectedForwardingRulesIpSecIpAddress,     actualForwardingRulesIpSecIpAddress,
-			expectedForwardingRulesIpSecIpProtocol,    actualForwardingRulesIpSecIpProtocol,
-			expectedForwardingRulesIpSecRegion,        actualForwardingRulesIpSecRegion,
-			expectedForwardingRulesIpSecTarget,        actualForwardingRulesIpSecTarget,
+		// 	gcpVpcResources.forwardingRules.ipsecNat.id, resourceGcp?.forwardingRules.ipsecNat.id,
+		// 	gcpVpcResources.forwardingRules.ipsecNat.name, resourceGcp?.forwardingRules.ipsecNat.name,
+		// 	gcpVpcResources.forwardingRules.ipsecNat.ipAddress, resourceGcp?.forwardingRules.ipsecNat.ipAddress,
+		// 	gcpVpcResources.forwardingRules.ipsecNat.ipProtocol, resourceGcp?.forwardingRules.ipsecNat.ipProtocol,
+		// 	gcpVpcResources.forwardingRules.ipsecNat.region, resourceGcp?.forwardingRules.ipsecNat.region,
+		// 	gcpVpcResources.forwardingRules.ipsecNat.target, resourceGcp?.forwardingRules.ipsecNat.target,
+		// ]).apply(([
+		// 	expectedForwardingRulesEspId,              actualForwardingRulesEspId,
+		// 	expectedForwardingRulesEspName,            actualForwardingRulesEspName,
+		// 	expectedForwardingRulesEspIpAddress,       actualForwardingRulesEspIpAddress,
+		// 	expectedForwardingRulesEspIpProtocol,      actualForwardingRulesEspIpProtocol,
+		// 	expectedForwardingRulesEspRegion,          actualForwardingRulesEspRegion,
+		// 	expectedForwardingRulesEspTarget,          actualForwardingRulesEspTarget,
 
-			expectedForwardingRulesIpSecNatId,         actualForwardingRulesIpSecNatId,
-			expectedForwardingRulesIpSecNatName,       actualForwardingRulesIpSecNatName,
-			expectedForwardingRulesIpSecNatIpAddress,  actualForwardingRulesIpSecNatIpAddress,
-			expectedForwardingRulesIpSecNatIpProtocol, actualForwardingRulesIpSecNatIpProtocol,
-			expectedForwardingRulesIpSecNatRegion,     actualForwardingRulesIpSecNatRegion,
-			expectedForwardingRulesIpSecNatTarget,     actualForwardingRulesIpSecNatTarget,
-		]) => {
-			expect(actualForwardingRulesEspId).toBe(expectedForwardingRulesEspId);
-			expect(actualForwardingRulesEspName).toBe(expectedForwardingRulesEspName);
-			expect(actualForwardingRulesEspIpAddress).toBe(expectedForwardingRulesEspIpAddress);
-			expect(actualForwardingRulesEspIpProtocol).toBe(expectedForwardingRulesEspIpProtocol);
-			expect(actualForwardingRulesEspRegion).toBe(expectedForwardingRulesEspRegion);
-			expect(actualForwardingRulesEspTarget).toBe(expectedForwardingRulesEspTarget);
+		// 	expectedForwardingRulesIpSecId,            actualForwardingRulesIpSecId,
+		// 	expectedForwardingRulesIpSecName,          actualForwardingRulesIpSecName,
+		// 	expectedForwardingRulesIpSecIpAddress,     actualForwardingRulesIpSecIpAddress,
+		// 	expectedForwardingRulesIpSecIpProtocol,    actualForwardingRulesIpSecIpProtocol,
+		// 	expectedForwardingRulesIpSecRegion,        actualForwardingRulesIpSecRegion,
+		// 	expectedForwardingRulesIpSecTarget,        actualForwardingRulesIpSecTarget,
 
-			expect(actualForwardingRulesIpSecId).toBe(expectedForwardingRulesIpSecId);
-			expect(actualForwardingRulesIpSecName).toBe(expectedForwardingRulesIpSecName);
-			expect(actualForwardingRulesIpSecIpAddress).toBe(expectedForwardingRulesIpSecIpAddress);
-			expect(actualForwardingRulesIpSecIpProtocol).toBe(expectedForwardingRulesIpSecIpProtocol);
-			expect(actualForwardingRulesIpSecRegion).toBe(expectedForwardingRulesIpSecRegion);
-			expect(actualForwardingRulesIpSecTarget).toBe(expectedForwardingRulesIpSecTarget);
+		// 	expectedForwardingRulesIpSecNatId,         actualForwardingRulesIpSecNatId,
+		// 	expectedForwardingRulesIpSecNatName,       actualForwardingRulesIpSecNatName,
+		// 	expectedForwardingRulesIpSecNatIpAddress,  actualForwardingRulesIpSecNatIpAddress,
+		// 	expectedForwardingRulesIpSecNatIpProtocol, actualForwardingRulesIpSecNatIpProtocol,
+		// 	expectedForwardingRulesIpSecNatRegion,     actualForwardingRulesIpSecNatRegion,
+		// 	expectedForwardingRulesIpSecNatTarget,     actualForwardingRulesIpSecNatTarget,
+		// ]) => {
+		// 	expect(actualForwardingRulesEspId).toBe(expectedForwardingRulesEspId);
+		// 	expect(actualForwardingRulesEspName).toBe(expectedForwardingRulesEspName);
+		// 	expect(actualForwardingRulesEspIpAddress).toBe(expectedForwardingRulesEspIpAddress);
+		// 	expect(actualForwardingRulesEspIpProtocol).toBe(expectedForwardingRulesEspIpProtocol);
+		// 	expect(actualForwardingRulesEspRegion).toBe(expectedForwardingRulesEspRegion);
+		// 	expect(actualForwardingRulesEspTarget).toBe(expectedForwardingRulesEspTarget);
 
-			expect(actualForwardingRulesIpSecNatId).toBe(expectedForwardingRulesIpSecNatId);
-			expect(actualForwardingRulesIpSecNatName).toBe(expectedForwardingRulesIpSecNatName);
-			expect(actualForwardingRulesIpSecNatIpAddress).toBe(expectedForwardingRulesIpSecNatIpAddress);
-			expect(actualForwardingRulesIpSecNatIpProtocol).toBe(expectedForwardingRulesIpSecNatIpProtocol);
-			expect(actualForwardingRulesIpSecNatRegion).toBe(expectedForwardingRulesIpSecNatRegion);
-			expect(actualForwardingRulesIpSecNatTarget).toBe(expectedForwardingRulesIpSecNatTarget);
-		});
+		// 	expect(actualForwardingRulesIpSecId).toBe(expectedForwardingRulesIpSecId);
+		// 	expect(actualForwardingRulesIpSecName).toBe(expectedForwardingRulesIpSecName);
+		// 	expect(actualForwardingRulesIpSecIpAddress).toBe(expectedForwardingRulesIpSecIpAddress);
+		// 	expect(actualForwardingRulesIpSecIpProtocol).toBe(expectedForwardingRulesIpSecIpProtocol);
+		// 	expect(actualForwardingRulesIpSecRegion).toBe(expectedForwardingRulesIpSecRegion);
+		// 	expect(actualForwardingRulesIpSecTarget).toBe(expectedForwardingRulesIpSecTarget);
+
+		// 	expect(actualForwardingRulesIpSecNatId).toBe(expectedForwardingRulesIpSecNatId);
+		// 	expect(actualForwardingRulesIpSecNatName).toBe(expectedForwardingRulesIpSecNatName);
+		// 	expect(actualForwardingRulesIpSecNatIpAddress).toBe(expectedForwardingRulesIpSecNatIpAddress);
+		// 	expect(actualForwardingRulesIpSecNatIpProtocol).toBe(expectedForwardingRulesIpSecNatIpProtocol);
+		// 	expect(actualForwardingRulesIpSecNatRegion).toBe(expectedForwardingRulesIpSecNatRegion);
+		// 	expect(actualForwardingRulesIpSecNatTarget).toBe(expectedForwardingRulesIpSecNatTarget);
+		// });
 
 		expect(result[2].type).toBe(AccountType.AzureAccount);
 		expect(result[2].vpcs["/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678"].type).toBe(VpcType.AzureVpc);
