@@ -302,33 +302,23 @@ async function accountsToSimplifiedResourceMap(accounts: PhaseOneAccount[]) {
 	const records: Record<string, unknown> = {};
 	for (const account of accounts) {
 		for (const vpcId in account.vpcs) {
-			// console.log(`vpcId = ${vpcId}`);
 			switch (account.type) {
 				case AccountType.AwsAccount: {
 					const item = outputOnOutsideAws(account.vpcs[vpcId].resource!);
 					const promise = await promiseOf(item);
 					records[vpcId] = promise;
-					// pulumi.all([item]).apply(([item]) => {
-					// 	records[vpcId] = item;
-					// });
 					break;
 				}
 				case AccountType.AzureAccount: {
 					const item = outputOnOutsideAzure(account.vpcs[vpcId].resource!);
 					const promise = await promiseOf(item);
 					records[vpcId] = promise;
-					// pulumi.all([item]).apply(([item]) => {
-					// 	records[vpcId] = item;
-					// });
 					break;
 				}
 				case AccountType.GcpAccount: {
 					const item = outputOnOutsideGcp(account.vpcs[vpcId].resource!);
 					const promise = await promiseOf(item);
 					records[vpcId] = promise;
-					// pulumi.all([item]).apply(([item]) => {
-					// 	records[vpcId] = item;
-					// });
 					break;
 				}
 				default: {
@@ -813,34 +803,7 @@ describe("PhaseOneAccount", () => {
 
 	it("buildPhase1Result builds expected cloud resources", async () => {
 		const result = buildPhase1Result(config, /* mockup = */ false);
-		// expect(result[0].type).toBe(AccountType.AwsAccount);
-		// expect(result[0].vpcs["vpc-12345678"].type).toBe(VpcType.AwsVpc);
-		// expect(result[0].vpcs["vpc-87654321"].type).toBe(VpcType.AwsVpc);
-
-		// const resource1 = outputOnOutsideAws(result[0].vpcs["vpc-12345678"].resource as AwsPhaseOneResource);
-		// const resource2 = outputOnOutsideAws(result[0].vpcs["vpc-87654321"].resource as AwsPhaseOneResource);
-		// pulumi.all([resource1, resource2]).apply(([resource1, resource2]) => {
-		// 	expect(resource1).toMatchObject(awsVpc1Resources);
-		// 	expect(resource2).toMatchObject(awsVpc2Resources);
-		// });
-
-		// expect(result[1].type).toBe(AccountType.GcpAccount);
-		// expect(result[1].vpcs["12345678901234567"].type).toBe(VpcType.GcpVpc);
-		// const resourceGcp = outputOnOutsideGcp(result[1].vpcs["12345678901234567"].resource as GcpPhaseOneResource);
-		// pulumi.all([resourceGcp]).apply(([resource]) => {
-		// 	expect(resource).toMatchObject(gcpVpcResources);
-		// });
-
-		// expect(result[2].type).toBe(AccountType.AzureAccount);
-		// expect(result[2].vpcs["/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678"].type).toBe(VpcType.AzureVpc);
-		// const resourceAzure = outputOnOutsideAzure(result[2].vpcs["/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678"].resource as AzurePhaseOneResource);
-		// pulumi.all([resourceAzure]).apply(([resource]) => {
-		// 	expect(resource).toMatchObject(azureVpcResources);
-		// });
-
 		const records = await accountsToSimplifiedResourceMap(result);
-		// console.log(`records = ${JSON.stringify(Object.getOwnPropertyNames(records))}`);
-		// console.log(`expectedPhaseOneResources = ${JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneResources))}`);
 
 		// vpc id's found in records must match the expected ones exactly
 		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneResources)));
