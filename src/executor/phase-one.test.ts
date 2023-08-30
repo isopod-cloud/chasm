@@ -31,6 +31,7 @@ pulumi.runtime.setMocks({
 					state: {
 						...args.inputs,
 						id: "sg-55555555",
+						name: args.inputs.name || args.name,
 					},
 				};
 			case "azure-native:network:PublicIPAddress":
@@ -82,11 +83,28 @@ pulumi.runtime.setMocks({
 			case "azure-native:network:getSubnet":
 				return {
 					id: "subnet-1234-abcd-5678-90ef",
+
+					etag: "",
+					ipConfigurationProfiles: [],
+					ipConfigurations: [],
+					privateEndpoints: [],
+					provisioningState: "ready",
+					purpose: "",
+					resourceNavigationLinks: [],
+					serviceAssociationLinks: [],
+		
 					...args.inputs
 				};
 			case "gcp:compute/getNetwork:getNetwork":
 				return {
 					id: "network-5678-1234-abcd-90ef",
+
+					// 
+					description: "",
+					gatewayIpv4: "172.16.129.10",
+					selfLink: "",
+					subnetworksSelfLinks: [],
+
 					...args.inputs
 				};
 			default:
@@ -109,6 +127,8 @@ function promiseOf<T>(output: pulumi.Output<T>): Promise<T> {
 }
 
 import * as aws from "@pulumi/aws";
+import * as azure from "@pulumi/azure-native";
+import * as gcp from "@pulumi/gcp";
 import { AwsVpc, Config, GcpSubnet, GcpVpc } from "../types/new-types";
 import {
 	AccountType,
@@ -124,7 +144,19 @@ import {
 } from "./phase-one";
 import { isPresent } from "../utils";
 
-function outputOnOutsideAws(resource: AwsPhaseOneResource) {
+// NOTE: There are other attributes in the pulumi aws objects, but these unwrapped ones are the
+// ones we care about for plan-mesh
+interface AwsVpnGatewayUnwrapped {
+	id: string;
+	vpcId: string;
+	tags: Record<string, string> | undefined;
+}
+
+interface AwsPhaseOneResourceUnwrapped {
+	vpnGateway: AwsVpnGatewayUnwrapped;
+}
+
+function outputOnOutsideAws(resource: AwsPhaseOneResource): pulumi.Output<AwsPhaseOneResourceUnwrapped> {
 	return pulumi.all([resource.vpnGateway.id, resource.vpnGateway.vpcId, resource.vpnGateway.tags]).apply(([
 		id, vpcId, tags
 	]) => {
@@ -138,12 +170,60 @@ function outputOnOutsideAws(resource: AwsPhaseOneResource) {
 	});
 }
 
-function outputOnOutsideGcp(resource: GcpPhaseOneResource) {
-	// NOTE: pulumi.all() and apply() have a cap for max # of static parameters you can pass into
-	// them. Therefore, we build one object just with the forwardingRules and pass that into a
-	// subsequent invocation on pulumi.all() and apply() using the remainder of the attributes.
-	// This is the simplest way to work around this limit.
-	const forwardingRules = pulumi.all([
+// NOTE: There are other attributes in the pulumi gcp objects, but these unwrapped ones are the
+// ones we care about for plan-mesh
+//
+// NOTE: The "or undefined" in the member types below are imposed by pulumi gcp forwarding rules at
+// build-time. In truth, only portRange is optional, all other attributes should always be present.
+interface GcpForwaringRuleUnwrapped {
+	id: string | undefined;
+	name: string | undefined;
+
+	// TODO: After unwrapping ipAddress from the pulumi gcp object, we get a string, but we can
+	// decide if it is helpful to convert this to a formal IpV4Address object
+	ipAddress: string | undefined;
+	ipProtocol: string | undefined;
+	region: string | undefined;
+
+	target: string | undefined;
+	portRange: string | undefined;
+}
+
+interface GcpForwardingRulesUnwrapped {
+	esp: GcpForwaringRuleUnwrapped;
+	ipsec: GcpForwaringRuleUnwrapped;
+	ipsecNat: GcpForwaringRuleUnwrapped;
+}
+
+interface GcpVpnGatewayUnwrapped {
+	id: string;
+	region: string;
+	name: string;
+}
+
+interface GcpPublicIpUnwrapped {
+	id: string;
+
+	// TODO: After unwrapping ipAddress from the pulumi gcp object, we get a string, but we can
+	// decide if it is helpful to convert this to a formal IpV4Address object
+	address: string;
+
+	labels: Record<string, string> | undefined;
+}
+
+interface GcpPhaseOneResourceUnwrapped {
+	network: gcp.compute.GetNetworkResult;
+	vpnGateway: GcpVpnGatewayUnwrapped;
+	publicIp: GcpPublicIpUnwrapped;
+	forwardingRules: GcpForwardingRulesUnwrapped;
+}
+
+function outputOnOutsideGcp(resource: GcpPhaseOneResource): pulumi.Output<GcpPhaseOneResourceUnwrapped> {
+	// NOTE: pulumi.all() and apply() have a cap for max # of static pulumi Output parameters you
+	// can pass into them. Therefore, we build one object just with the forwardingRules and pass
+	// that into a subsequent invocation on pulumi.all() and apply() using the remainder of the
+	// attributes. This is the simplest way to work around this limit.
+	const forwardingRules: pulumi.Output<GcpForwardingRulesUnwrapped> = pulumi.all([
 		resource.forwardingRules.esp.id,
 		resource.forwardingRules.esp.name,
 		resource.forwardingRules.esp.ipAddress,
@@ -203,7 +283,7 @@ function outputOnOutsideGcp(resource: GcpPhaseOneResource) {
 				target: forwardingRulesEspTarget,
 				portRange: forwardingRulesEspPortRange,
 			},
-			ipSec: {
+			ipsec: {
 				id: forwardingRulesIpSecId,
 				name: forwardingRulesIpSecName,
 				ipAddress: forwardingRulesIpSecIpAddress,
@@ -212,7 +292,7 @@ function outputOnOutsideGcp(resource: GcpPhaseOneResource) {
 				target: forwardingRulesIpSecTarget,
 				portRange: forwardingRulesIpSecPortRange,
 			},
-			ipSecNat: {
+			ipsecNat: {
 				id: forwardingRulesIpSecNatId,
 				name: forwardingRulesIpSecNatName,
 				ipAddress: forwardingRulesIpSecNatIpAddress,
@@ -255,19 +335,37 @@ function outputOnOutsideGcp(resource: GcpPhaseOneResource) {
 				address: publicIpAddress,
 				labels: publicIpLabels,
 			},
-			// NOTE: Only esp attribute is preserved if forwardingRules shorthand is used here, not
-			// sure why. To make sure ipsec and ipsecNat are preserved too, we name explicitly name
-			// all 3 outer object attributes we care about.
-			forwardingRules: {
-				esp: forwardingRules.esp,
-				ipsec: forwardingRules.ipSec,
-				ipsecNat: forwardingRules.ipSecNat,
-			},
+			forwardingRules,
 		});
 	});
 }
 
-function outputOnOutsideAzure(resource: AzurePhaseOneResource) {
+// NOTE: There are other attributes in the pulumi azure objects, but these unwrapped ones are the
+// ones we care about for plan-mesh
+interface AzurePublicIpUnwrapped {
+
+	id: string;
+
+	// TODO: After unwrapping ipAddress from the pulumi azure object, if it's not undefined, then
+	// we get a string, but we can decide if it is helpful to convert this to a formal IpV4Address
+	// object
+	ipAddress: string | undefined;
+
+}
+
+interface AzureVpnGatewayUnwrapped {
+	id: string;
+	name: string;
+	tags: Record<string, string> | undefined;
+}
+
+interface AzurePhaseOneResourceUnwrapped {
+	gatewaySubnet: azure.network.GetSubnetResult;
+	publicIp: AzurePublicIpUnwrapped;
+	vpnGateway: AzureVpnGatewayUnwrapped;
+}
+
+function outputOnOutsideAzure(resource: AzurePhaseOneResource): pulumi.Output<AzurePhaseOneResourceUnwrapped> {
 	return pulumi.all([
 		resource.gatewaySubnet,
 		resource.publicIp.id,
@@ -298,27 +396,34 @@ function outputOnOutsideAzure(resource: AzurePhaseOneResource) {
 	});
 }
 
-async function accountsToSimplifiedResourceMap(accounts: PhaseOneAccount[]) {
-	const records: Record<string, unknown> = {};
+type PhaseOneResourceUnwrapped = AwsPhaseOneResourceUnwrapped | AzurePhaseOneResourceUnwrapped | GcpPhaseOneResourceUnwrapped;
+
+async function accountsToSimplifiedResourceMap(accounts: PhaseOneAccount[]): Promise<Record<string, PhaseOneResourceUnwrapped>> {
+	const records: Record<string, PhaseOneResourceUnwrapped> = {};
 	for (const account of accounts) {
 		for (const vpcId in account.vpcs) {
 			switch (account.type) {
 				case AccountType.AwsAccount: {
-					const item = outputOnOutsideAws(account.vpcs[vpcId].resource!);
-					const promise = await promiseOf(item);
-					records[vpcId] = promise;
+					records[vpcId] = await promiseOf(outputOnOutsideAws(account.vpcs[vpcId].resource!));
+
+					// const item = outputOnOutsideAws(account.vpcs[vpcId].resource!);
+					// const promise = await promiseOf(item);
+					// records[vpcId] = promise;
 					break;
 				}
 				case AccountType.AzureAccount: {
-					const item = outputOnOutsideAzure(account.vpcs[vpcId].resource!);
-					const promise = await promiseOf(item);
-					records[vpcId] = promise;
+					records[vpcId] = await promiseOf(outputOnOutsideAzure(account.vpcs[vpcId].resource!));
+					// const item = outputOnOutsideAzure(account.vpcs[vpcId].resource!);
+					// const promise = await promiseOf(item);
+					// records[vpcId] = promise;
 					break;
 				}
 				case AccountType.GcpAccount: {
-					const item = outputOnOutsideGcp(account.vpcs[vpcId].resource!);
-					const promise = await promiseOf(item);
-					records[vpcId] = promise;
+					records[vpcId] = await promiseOf(outputOnOutsideGcp(account.vpcs[vpcId].resource!));
+
+					// const item = outputOnOutsideGcp(account.vpcs[vpcId].resource!);
+					// const promise = await promiseOf(item);
+					// records[vpcId] = promise;
 					break;
 				}
 				default: {
@@ -546,7 +651,7 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const awsVpc1Resources = //: AwsPhaseOneResource =
+	const awsVpc1Resources: AwsPhaseOneResourceUnwrapped =
 	{
 		vpnGateway: {
 			id: "sg-111111-1",
@@ -605,7 +710,7 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const awsVpc2Resources = //: AwsPhaseOneResource =
+	const awsVpc2Resources: AwsPhaseOneResourceUnwrapped =
 	{
 		vpnGateway: {
 			id: "sg-111111-2",
@@ -648,11 +753,15 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const gcpVpcResources = //: GcpPhaseOneResource =
+	const gcpVpcResources: GcpPhaseOneResourceUnwrapped =
 	{
 		network: {
 			id: "network-5678-1234-abcd-90ef",
 			name: "my-project-vpc",
+			description: "",
+			gatewayIpv4: "172.16.129.10",
+			selfLink: "",
+			subnetworksSelfLinks: []
 		},
 		vpnGateway: {
 			id: "sg-55555555",
@@ -674,6 +783,7 @@ describe("PhaseOneAccount", () => {
 				ipProtocol: "ESP",
 				region: "us-west4",
 				target: "sg-55555555",
+				portRange: undefined,
 			},
 			ipsec: {
 				id: "forwarding-rule-2",
@@ -739,10 +849,18 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const azureVpcResources = //: AzurePhaseOneResource =
+	const azureVpcResources: AzurePhaseOneResourceUnwrapped =
 	{
 		gatewaySubnet: {
 			id: "subnet-1234-abcd-5678-90ef",
+			etag: "",
+			ipConfigurationProfiles: [],
+			ipConfigurations: [],
+			privateEndpoints: [],
+			provisioningState: "ready",
+			purpose: "",
+			resourceNavigationLinks: [],
+			serviceAssociationLinks: []
 		},
 		publicIp: {
 			id: "sg-22222222",
@@ -784,7 +902,7 @@ describe("PhaseOneAccount", () => {
 		},
 	];
 
-	const expectedPhaseOneResources = {
+	const expectedPhaseOneResources: Record<string, PhaseOneResourceUnwrapped> = {
 		"vpc-12345678": awsVpc1Resources,
 		"vpc-87654321": awsVpc2Resources,
 		"12345678901234567": gcpVpcResources,
