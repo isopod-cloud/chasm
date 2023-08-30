@@ -60,12 +60,12 @@ export interface AwsPhaseOneVpc extends BasePhaseOneVpc {
 // TODO: move this into aws section
 const buildForAwsAccount = (
 	account: AwsAccount,
-	mockup: boolean,
+	omitResources: boolean,
 ): PhaseOneAccount => {
 	const vpcArray: Array<[string, AwsPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
-			if (mockup) {
+			if (omitResources) {
 				return [vpc.id, { type: VpcType.AwsVpc, resource: null, cidrs, subnets: vpc.subnets, vpc }];
 			} else {
 				const vpnGateway = new aws.ec2.VpnGateway(
@@ -84,7 +84,7 @@ const buildForAwsAccount = (
 		}) ?? [];
 	return {
 		type: AccountType.AwsAccount as const,
-		mockup,
+		omitResources,
 		vpcs: Object.fromEntries(vpcArray),
 	};
 };
@@ -110,7 +110,7 @@ export interface AzurePhaseOneVpc extends BasePhaseOneVpc {
 // TODO: move this into azure section
 const buildForAzureAccount = (
 	account: AzureAccount,
-	mockup: boolean,
+	omitResources: boolean,
 ): PhaseOneAccount => {
 	const vpcArray: Array<[string, AzurePhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
@@ -119,7 +119,7 @@ const buildForAzureAccount = (
 				.split("/")
 				.slice(-1)[0];
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
-			if (mockup) {
+			if (omitResources) {
 				return [
 					vpc.id,
 					{
@@ -206,7 +206,7 @@ const buildForAzureAccount = (
 		}) ?? [];
 	return {
 		type: AccountType.AzureAccount as const,
-		mockup,
+		omitResources,
 		vpcs: Object.fromEntries(vpcArray),
 	};
 };
@@ -239,14 +239,14 @@ export interface GcpPhaseOneVpc extends BasePhaseOneVpc {
 // TODO: move this into gcp section
 const buildForGcpAccount = (
 	account: GcpAccount,
-	mockup: boolean,
+	omitResources: boolean,
 ): PhaseOneAccount => {
 	const vpcArray: Array<[string, GcpPhaseOneVpc]> =
 		account.vpcs?.map((vpc) => {
 			const cidrs = vpc.subnets.map((subnet) => subnet.cidr);
 			const region = vpc.subnets[0].region;
 			const vpnName = vpc.id.split("/").slice(-1)[0];
-			if (mockup) {
+			if (omitResources) {
 				return [
 					vpc.id,
 					{
@@ -327,7 +327,7 @@ const buildForGcpAccount = (
 		}) ?? [];
 	return {
 		type: AccountType.GcpAccount as const,
-		mockup,
+		omitResources,
 		vpcs: Object.fromEntries(vpcArray),
 	};
 };
@@ -335,7 +335,7 @@ const buildForGcpAccount = (
 // TODO: move into types section, consider refactoring as a class or zod type. exported for testing
 export interface BasePhaseOneAccount {
 	type: AccountType;
-	mockup: boolean;
+	omitResources: boolean;
 }
 
 export interface AwsPhaseOneAccount extends BasePhaseOneAccount {
@@ -362,18 +362,18 @@ export type PhaseOneAccount =
 // exported for testing
 export function buildPhase1Result(
 	config: Config,
-	mockup: boolean = false,
+	omitResources: boolean = false,
 ): Array<PhaseOneAccount> {
 	return config.map((account) => {
 		switch (account.type) {
 			case "AwsAccount": {
-				return buildForAwsAccount(account, mockup);
+				return buildForAwsAccount(account, omitResources);
 			}
 			case "AzureAccount": {
-				return buildForAzureAccount(account, mockup);
+				return buildForAzureAccount(account, omitResources);
 			}
 			case "GcpAccount": {
-				return buildForGcpAccount(account, mockup);
+				return buildForGcpAccount(account, omitResources);
 			}
 			default: {
 				void (account satisfies never);

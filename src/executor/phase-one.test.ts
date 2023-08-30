@@ -141,6 +141,7 @@ import {
 	GcpPhaseOneResource,
 	AzurePhaseOneResource,
 	AwsPhaseOneResource,
+	PhaseOneVpc,
 } from "./phase-one";
 import { isPresent } from "../utils";
 
@@ -566,8 +567,9 @@ describe("PhaseOneAccount", () => {
 		},
 	];
 
-	const awsPhaseOneVpc1 = {
+	const awsPhaseOneVpc1: AwsPhaseOneVpc = {
 		type: VpcType.AwsVpc,
+		resource: null,
 		cidrs: [
 			"172.1.1.0/24",
 			"172.1.2.0/24",
@@ -662,8 +664,9 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const awsPhaseOneVpc2 = {
+	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
 		type: VpcType.AwsVpc,
+		resource: null,
 		cidrs: ["172.2.1.0/24", "172.2.2.0/24", "172.2.3.0/24"],
 		subnets: [
 			{
@@ -721,8 +724,9 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const gcpPhaseOneVpc = {
+	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
 		type: VpcType.GcpVpc,
+		resource: null,
 		region: "us-west4",
 		vpnName: "12345678901234567",
 		cidrs: ["30.30.30.0/24"],
@@ -806,8 +810,9 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const azurePhaseOneVpc = {
+	const azurePhaseOneVpc: AzurePhaseOneVpc = {
 		type: VpcType.AzureVpc,
+		resource: null,
 		vpcName: "test-resource-rg-vnet-12345678",
 		resourceGroupNameTruncated: "test-resource-rg",
 		resourceGroupName:
@@ -875,10 +880,10 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const expectedPhaseOneAccounts = [
+	const expectedPhaseOneAccounts : Array<PhaseOneAccount> = [
 		{
 			type: AccountType.AwsAccount,
-			mockup: true,
+			omitResources: true,
 			vpcs: {
 				"vpc-12345678": awsPhaseOneVpc1,
 				"vpc-87654321": awsPhaseOneVpc2,
@@ -886,7 +891,7 @@ describe("PhaseOneAccount", () => {
 		},
 		{
 			type: AccountType.GcpAccount,
-			mockup: true,
+			omitResources: true,
 			vpcs: {
 				"12345678901234567": gcpPhaseOneVpc,
 			},
@@ -894,7 +899,7 @@ describe("PhaseOneAccount", () => {
 
 		{
 			type: AccountType.AzureAccount,
-			mockup: true,
+			omitResources: true,
 			vpcs: {
 				"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
 					azurePhaseOneVpc,
@@ -915,13 +920,13 @@ describe("PhaseOneAccount", () => {
 	});
 
 	it("buildPhase1Result builds expected PhaseOneAccount", () => {
-		const result = buildPhase1Result(config, /* mockup = */ true);
+		const result = buildPhase1Result(config, /* omitResources = */ true);
 		expect(result).toMatchObject(expectedPhaseOneAccounts);
 	});
 
 	it("buildPhase1Result builds expected cloud resources", async () => {
-		const result = buildPhase1Result(config, /* mockup = */ false);
-		const records = await accountsToSimplifiedResourceMap(result);
+		const resultWithResources = buildPhase1Result(config);
+		const records = await accountsToSimplifiedResourceMap(resultWithResources);
 
 		// vpc id's found in records must match the expected ones exactly
 		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneResources)));
