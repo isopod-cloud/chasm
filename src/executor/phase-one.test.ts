@@ -157,7 +157,7 @@ interface AwsPhaseOneResourceUnwrapped {
 	vpnGateway: AwsVpnGatewayUnwrapped;
 }
 
-function outputOnOutsideAws(resource: AwsPhaseOneResource): pulumi.Output<AwsPhaseOneResourceUnwrapped> {
+function unwrapAwsResource(resource: AwsPhaseOneResource): pulumi.Output<AwsPhaseOneResourceUnwrapped> {
 	return pulumi.all([resource.vpnGateway.id, resource.vpnGateway.vpcId, resource.vpnGateway.tags]).apply(([
 		id, vpcId, tags
 	]) => {
@@ -219,7 +219,7 @@ interface GcpPhaseOneResourceUnwrapped {
 	forwardingRules: GcpForwardingRulesUnwrapped;
 }
 
-function outputOnOutsideGcp(resource: GcpPhaseOneResource): pulumi.Output<GcpPhaseOneResourceUnwrapped> {
+function unwrapGcpResource(resource: GcpPhaseOneResource): pulumi.Output<GcpPhaseOneResourceUnwrapped> {
 	// NOTE: pulumi.all() and apply() have a cap for max # of static pulumi Output parameters you
 	// can pass into them. Therefore, we build one object just with the forwardingRules and pass
 	// that into a subsequent invocation on pulumi.all() and apply() using the remainder of the
@@ -366,7 +366,7 @@ interface AzurePhaseOneResourceUnwrapped {
 	vpnGateway: AzureVpnGatewayUnwrapped;
 }
 
-function outputOnOutsideAzure(resource: AzurePhaseOneResource): pulumi.Output<AzurePhaseOneResourceUnwrapped> {
+function unwrapAzureResource(resource: AzurePhaseOneResource): pulumi.Output<AzurePhaseOneResourceUnwrapped> {
 	return pulumi.all([
 		resource.gatewaySubnet,
 		resource.publicIp.id,
@@ -399,13 +399,13 @@ function outputOnOutsideAzure(resource: AzurePhaseOneResource): pulumi.Output<Az
 
 type PhaseOneResourceUnwrapped = AwsPhaseOneResourceUnwrapped | AzurePhaseOneResourceUnwrapped | GcpPhaseOneResourceUnwrapped;
 
-async function accountsToSimplifiedResourceMap(accounts: PhaseOneAccount[]): Promise<Record<string, PhaseOneResourceUnwrapped>> {
+async function getUnwrappedResourceRecords(accounts: PhaseOneAccount[]): Promise<Record<string, PhaseOneResourceUnwrapped>> {
 	const records: Record<string, PhaseOneResourceUnwrapped> = {};
 	for (const account of accounts) {
 		for (const vpcId in account.vpcs) {
 			switch (account.type) {
 				case AccountType.AwsAccount: {
-					records[vpcId] = await promiseOf(outputOnOutsideAws(account.vpcs[vpcId].resource!));
+					records[vpcId] = await promiseOf(unwrapAwsResource(account.vpcs[vpcId].resource));
 
 					// const item = outputOnOutsideAws(account.vpcs[vpcId].resource!);
 					// const promise = await promiseOf(item);
@@ -413,14 +413,14 @@ async function accountsToSimplifiedResourceMap(accounts: PhaseOneAccount[]): Pro
 					break;
 				}
 				case AccountType.AzureAccount: {
-					records[vpcId] = await promiseOf(outputOnOutsideAzure(account.vpcs[vpcId].resource!));
+					records[vpcId] = await promiseOf(unwrapAzureResource(account.vpcs[vpcId].resource));
 					// const item = outputOnOutsideAzure(account.vpcs[vpcId].resource!);
 					// const promise = await promiseOf(item);
 					// records[vpcId] = promise;
 					break;
 				}
 				case AccountType.GcpAccount: {
-					records[vpcId] = await promiseOf(outputOnOutsideGcp(account.vpcs[vpcId].resource!));
+					records[vpcId] = await promiseOf(unwrapGcpResource(account.vpcs[vpcId].resource));
 
 					// const item = outputOnOutsideGcp(account.vpcs[vpcId].resource!);
 					// const promise = await promiseOf(item);
@@ -434,6 +434,15 @@ async function accountsToSimplifiedResourceMap(accounts: PhaseOneAccount[]): Pro
 		}
 	}
 	return records;
+}
+
+type AwsPhaseOneVpcWithoutResource = Omit<AwsPhaseOneVpc, "resource">;
+type GcpPhaseOneVpcWithoutResource = Omit<GcpPhaseOneVpc, "resource">;
+type AzurePhaseOneVpcWithoutResource = Omit<AzurePhaseOneVpc, "resource">;
+type PhaseOneVpcWithoutResource = Omit<PhaseOneVpc, "resource">;
+interface PhaseOneAccountWithoutResource {
+	type: AccountType;
+	vpcs: Record<string, PhaseOneVpcWithoutResource>;
 }
 
 describe("PhaseOneAccount", () => {
@@ -567,9 +576,8 @@ describe("PhaseOneAccount", () => {
 		},
 	];
 
-	const awsPhaseOneVpc1: AwsPhaseOneVpc = {
+	const awsPhaseOneVpc1: AwsPhaseOneVpcWithoutResource = {
 		type: VpcType.AwsVpc,
-		resource: null,
 		cidrs: [
 			"172.1.1.0/24",
 			"172.1.2.0/24",
@@ -653,7 +661,7 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const awsVpc1Resources: AwsPhaseOneResourceUnwrapped =
+	const awsVpc1ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped =
 	{
 		vpnGateway: {
 			id: "sg-111111-1",
@@ -664,9 +672,8 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const awsPhaseOneVpc2: AwsPhaseOneVpc = {
+	const awsPhaseOneVpc2: AwsPhaseOneVpcWithoutResource = {
 		type: VpcType.AwsVpc,
-		resource: null,
 		cidrs: ["172.2.1.0/24", "172.2.2.0/24", "172.2.3.0/24"],
 		subnets: [
 			{
@@ -713,7 +720,7 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const awsVpc2Resources: AwsPhaseOneResourceUnwrapped =
+	const awsVpc2ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped =
 	{
 		vpnGateway: {
 			id: "sg-111111-2",
@@ -724,9 +731,8 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const gcpPhaseOneVpc: GcpPhaseOneVpc = {
+	const gcpPhaseOneVpc: GcpPhaseOneVpcWithoutResource = {
 		type: VpcType.GcpVpc,
-		resource: null,
 		region: "us-west4",
 		vpnName: "12345678901234567",
 		cidrs: ["30.30.30.0/24"],
@@ -757,7 +763,7 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const gcpVpcResources: GcpPhaseOneResourceUnwrapped =
+	const gcpVpcResourcesUnwrapped: GcpPhaseOneResourceUnwrapped =
 	{
 		network: {
 			id: "network-5678-1234-abcd-90ef",
@@ -810,9 +816,8 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const azurePhaseOneVpc: AzurePhaseOneVpc = {
+	const azurePhaseOneVpc: AzurePhaseOneVpcWithoutResource = {
 		type: VpcType.AzureVpc,
-		resource: null,
 		vpcName: "test-resource-rg-vnet-12345678",
 		resourceGroupNameTruncated: "test-resource-rg",
 		resourceGroupName:
@@ -854,7 +859,7 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const azureVpcResources: AzurePhaseOneResourceUnwrapped =
+	const azureVpcResourcesUnwrapped: AzurePhaseOneResourceUnwrapped =
 	{
 		gatewaySubnet: {
 			id: "subnet-1234-abcd-5678-90ef",
@@ -880,10 +885,9 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const expectedPhaseOneAccounts : Array<PhaseOneAccount> = [
+	const expectedPhaseOneAccountsWithResourcesOmitted : Array<PhaseOneAccountWithoutResource> = [
 		{
 			type: AccountType.AwsAccount,
-			omitResources: true,
 			vpcs: {
 				"vpc-12345678": awsPhaseOneVpc1,
 				"vpc-87654321": awsPhaseOneVpc2,
@@ -891,7 +895,6 @@ describe("PhaseOneAccount", () => {
 		},
 		{
 			type: AccountType.GcpAccount,
-			omitResources: true,
 			vpcs: {
 				"12345678901234567": gcpPhaseOneVpc,
 			},
@@ -899,7 +902,6 @@ describe("PhaseOneAccount", () => {
 
 		{
 			type: AccountType.AzureAccount,
-			omitResources: true,
 			vpcs: {
 				"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
 					azurePhaseOneVpc,
@@ -907,11 +909,11 @@ describe("PhaseOneAccount", () => {
 		},
 	];
 
-	const expectedPhaseOneResources: Record<string, PhaseOneResourceUnwrapped> = {
-		"vpc-12345678": awsVpc1Resources,
-		"vpc-87654321": awsVpc2Resources,
-		"12345678901234567": gcpVpcResources,
-		"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678": azureVpcResources,
+	const expectedPhaseOneUnwrappedResources: Record<string, PhaseOneResourceUnwrapped> = {
+		"vpc-12345678": awsVpc1ResourcesUnwrapped,
+		"vpc-87654321": awsVpc2ResourcesUnwrapped,
+		"12345678901234567": gcpVpcResourcesUnwrapped,
+		"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678": azureVpcResourcesUnwrapped,
 	};
 
 	beforeEach(() => {
@@ -919,19 +921,22 @@ describe("PhaseOneAccount", () => {
 		forwardingCounter = 0;
 	});
 
-	it("buildPhase1Result builds expected PhaseOneAccount", () => {
-		const result = buildPhase1Result(config, /* omitResources = */ true);
-		expect(result).toMatchObject(expectedPhaseOneAccounts);
-	});
+	it("buildPhase1Result builds expected PhaseOneAccount", async () => {
+		// IMPORTANT: Because result has resource members containing objects with its own members
+		// wrapped in pulumi outputs, and these can't be checked without unwrapping, we do the
+		// following: (1) verify all attributes excluding the resources objects, (2) unwrap all
+		// members of resources, building "unwrapped resource records", then verify that
+		// separately.
 
-	it("buildPhase1Result builds expected cloud resources", async () => {
-		const resultWithResources = buildPhase1Result(config);
-		const records = await accountsToSimplifiedResourceMap(resultWithResources);
+		const result = buildPhase1Result(config);
+		expect(result).toMatchObject(expectedPhaseOneAccountsWithResourcesOmitted);
 
-		// vpc id's found in records must match the expected ones exactly
-		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneResources)));
+		const records = await getUnwrappedResourceRecords(result);
 
-		// objects found in records should at least contain the attribute values we're expecting to see
-		expect(records).toMatchObject(expectedPhaseOneResources);
+		// vpc id's used as keys in records must match the expected ones exactly
+		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneUnwrappedResources)));
+
+		// unwrapped resource values in records should at least contain the attributes we expect
+		expect(records).toMatchObject(expectedPhaseOneUnwrappedResources);
 	});
 });
