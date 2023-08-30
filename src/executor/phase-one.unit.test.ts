@@ -3,122 +3,126 @@ import * as pulumi from "@pulumi/pulumi";
 let awsCounter = 0;
 let forwardingCounter = 0;
 
-pulumi.runtime.setMocks({
-    newResource: function(args: pulumi.runtime.MockResourceArgs): {id: string, state: any} {
-		switch (args.type) {
-            case "aws:ec2/vpnGateway:VpnGateway":
-				awsCounter++;
-                return {
-                    id: `sg-111111-${awsCounter}`,
-                    state: {
-                        ...args.inputs,
-                        id: `sg-111111-${awsCounter}`,
-                        name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
-                    },
-                };
-			case "azure-native:network:VirtualNetworkGateway":
-				return {
-					id: "sg-87654321",
-					state: {
-						...args.inputs,
+pulumi.runtime.setMocks(
+	{
+		newResource: function (args: pulumi.runtime.MockResourceArgs): {
+			id: string;
+			state: any;
+		} {
+			switch (args.type) {
+				case "aws:ec2/vpnGateway:VpnGateway":
+					awsCounter++;
+					return {
+						id: `sg-111111-${awsCounter}`,
+						state: {
+							...args.inputs,
+							id: `sg-111111-${awsCounter}`,
+							name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
+						},
+					};
+				case "azure-native:network:VirtualNetworkGateway":
+					return {
 						id: "sg-87654321",
-						name: args.inputs.name || args.name,
-					},
-				};
-			case "gcp:compute/vPNGateway:VPNGateway":
-				return {
-					id: "sg-55555555",
-					state: {
-						...args.inputs,
+						state: {
+							...args.inputs,
+							id: "sg-87654321",
+							name: args.inputs.name || args.name,
+						},
+					};
+				case "gcp:compute/vPNGateway:VPNGateway":
+					return {
 						id: "sg-55555555",
-						name: args.inputs.name || args.name,
-					},
-				};
-			case "azure-native:network:PublicIPAddress":
-				return {
-					id: "sg-22222222",
-					state: {
-						...args.inputs,
+						state: {
+							...args.inputs,
+							id: "sg-55555555",
+							name: args.inputs.name || args.name,
+						},
+					};
+				case "azure-native:network:PublicIPAddress":
+					return {
 						id: "sg-22222222",
-						ipAddress: "10.0.2.2",
-					},
-				};
-			case "gcp:compute/address:Address":
-				return {
-					id: "sg-66666666",
-					state: {
-						...args.inputs,
+						state: {
+							...args.inputs,
+							id: "sg-22222222",
+							ipAddress: "10.0.2.2",
+						},
+					};
+				case "gcp:compute/address:Address":
+					return {
 						id: "sg-66666666",
-						labels: args.inputs.tags,
-						address: "172.16.129.1",
-					},
-				};
-			case "gcp:compute/forwardingRule:ForwardingRule":
-				forwardingCounter++;
-				return {
-					id: `forwarding-rule-${forwardingCounter}`,
-					state: {
-						...args.inputs,
+						state: {
+							...args.inputs,
+							id: "sg-66666666",
+							labels: args.inputs.tags,
+							address: "172.16.129.1",
+						},
+					};
+				case "gcp:compute/forwardingRule:ForwardingRule":
+					forwardingCounter++;
+					return {
 						id: `forwarding-rule-${forwardingCounter}`,
-					},
-				};
-		default:
-			return {
-				id: `unknown-resource-${args.type}`,
-				state: {
-					// NOTE: id is chosen to make it easy to debug problems
-					id: `unknown-resource-${args.type}`,
-					...args.inputs,
-				},
-			};
-		}
-    },
-    call: function(args: pulumi.runtime.MockCallArgs) {
-        switch (args.token) {
-            case "aws:ec2/getAmi:getAmi":
-                return {
-                    "architecture": "x86_64",
-                    "id": "ami-0eb1f3cdeeb8eed2a",
-                };
-			case "azure-native:network:getSubnet":
-				return {
-					id: "subnet-1234-abcd-5678-90ef",
+						state: {
+							...args.inputs,
+							id: `forwarding-rule-${forwardingCounter}`,
+						},
+					};
+				default:
+					return {
+						id: `unknown-resource-${args.type}`,
+						state: {
+							// NOTE: id is chosen to make it easy to debug problems
+							id: `unknown-resource-${args.type}`,
+							...args.inputs,
+						},
+					};
+			}
+		},
+		call: function (args: pulumi.runtime.MockCallArgs) {
+			switch (args.token) {
+				case "aws:ec2/getAmi:getAmi":
+					return {
+						architecture: "x86_64",
+						id: "ami-0eb1f3cdeeb8eed2a",
+					};
+				case "azure-native:network:getSubnet":
+					return {
+						id: "subnet-1234-abcd-5678-90ef",
 
-					etag: "",
-					ipConfigurationProfiles: [],
-					ipConfigurations: [],
-					privateEndpoints: [],
-					provisioningState: "ready",
-					purpose: "",
-					resourceNavigationLinks: [],
-					serviceAssociationLinks: [],
-		
-					...args.inputs
-				};
-			case "gcp:compute/getNetwork:getNetwork":
-				return {
-					id: "network-5678-1234-abcd-90ef",
+						etag: "",
+						ipConfigurationProfiles: [],
+						ipConfigurations: [],
+						privateEndpoints: [],
+						provisioningState: "ready",
+						purpose: "",
+						resourceNavigationLinks: [],
+						serviceAssociationLinks: [],
 
-					// 
-					description: "",
-					gatewayIpv4: "172.16.129.10",
-					selfLink: "",
-					subnetworksSelfLinks: [],
+						...args.inputs,
+					};
+				case "gcp:compute/getNetwork:getNetwork":
+					return {
+						id: "network-5678-1234-abcd-90ef",
 
-					...args.inputs
-				};
-			default:
-                return {
-					// NOTE: id is chosen to make it easy to debug problems
-					id: `undefined-call-${args.token}`,
-					...args.inputs
-				};
-        }
-    },
-},
-  "project",
-  "stack",
-  /* preview = */ false,
+						//
+						description: "",
+						gatewayIpv4: "172.16.129.10",
+						selfLink: "",
+						subnetworksSelfLinks: [],
+
+						...args.inputs,
+					};
+				default:
+					return {
+						// NOTE: id is chosen to make it easy to debug problems
+						id: `undefined-call-${args.token}`,
+						...args.inputs,
+					};
+			}
+		},
+	},
+	"project",
+	"stack",
+	/* preview = */ false,
 );
 
 import * as aws from "@pulumi/aws";
@@ -373,8 +377,7 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const awsVpc1ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped =
-	{
+	const awsVpc1ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped = {
 		vpnGateway: {
 			id: "sg-111111-1",
 			vpcId: "vpc-12345678",
@@ -432,8 +435,7 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const awsVpc2ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped =
-	{
+	const awsVpc2ResourcesUnwrapped: AwsPhaseOneResourceUnwrapped = {
 		vpnGateway: {
 			id: "sg-111111-2",
 			vpcId: "vpc-87654321",
@@ -475,15 +477,14 @@ describe("PhaseOneAccount", () => {
 		}),
 	};
 
-	const gcpVpcResourcesUnwrapped: GcpPhaseOneResourceUnwrapped =
-	{
+	const gcpVpcResourcesUnwrapped: GcpPhaseOneResourceUnwrapped = {
 		network: {
 			id: "network-5678-1234-abcd-90ef",
 			name: "my-project-vpc",
 			description: "",
 			gatewayIpv4: "172.16.129.10",
 			selfLink: "",
-			subnetworksSelfLinks: []
+			subnetworksSelfLinks: [],
 		},
 		vpnGateway: {
 			id: "sg-55555555",
@@ -571,8 +572,7 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const azureVpcResourcesUnwrapped: AzurePhaseOneResourceUnwrapped =
-	{
+	const azureVpcResourcesUnwrapped: AzurePhaseOneResourceUnwrapped = {
 		gatewaySubnet: {
 			id: "subnet-1234-abcd-5678-90ef",
 			etag: "",
@@ -582,7 +582,7 @@ describe("PhaseOneAccount", () => {
 			provisioningState: "ready",
 			purpose: "",
 			resourceNavigationLinks: [],
-			serviceAssociationLinks: []
+			serviceAssociationLinks: [],
 		},
 		publicIp: {
 			id: "sg-22222222",
@@ -597,35 +597,40 @@ describe("PhaseOneAccount", () => {
 		},
 	};
 
-	const expectedPhaseOneAccountsWithResourcesOmitted : Array<PhaseOneAccountWithoutResource> = [
-		{
-			type: AccountType.AwsAccount,
-			vpcs: {
-				"vpc-12345678": awsPhaseOneVpc1,
-				"vpc-87654321": awsPhaseOneVpc2,
+	const expectedPhaseOneAccountsWithResourcesOmitted: Array<PhaseOneAccountWithoutResource> =
+		[
+			{
+				type: AccountType.AwsAccount,
+				vpcs: {
+					"vpc-12345678": awsPhaseOneVpc1,
+					"vpc-87654321": awsPhaseOneVpc2,
+				},
 			},
-		},
-		{
-			type: AccountType.GcpAccount,
-			vpcs: {
-				"12345678901234567": gcpPhaseOneVpc,
+			{
+				type: AccountType.GcpAccount,
+				vpcs: {
+					"12345678901234567": gcpPhaseOneVpc,
+				},
 			},
-		},
 
-		{
-			type: AccountType.AzureAccount,
-			vpcs: {
-				"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
-					azurePhaseOneVpc,
+			{
+				type: AccountType.AzureAccount,
+				vpcs: {
+					"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
+						azurePhaseOneVpc,
+				},
 			},
-		},
-	];
+		];
 
-	const expectedPhaseOneUnwrappedResources: Record<string, PhaseOneResourceUnwrapped> = {
+	const expectedPhaseOneUnwrappedResources: Record<
+		string,
+		PhaseOneResourceUnwrapped
+	> = {
 		"vpc-12345678": awsVpc1ResourcesUnwrapped,
 		"vpc-87654321": awsVpc2ResourcesUnwrapped,
 		"12345678901234567": gcpVpcResourcesUnwrapped,
-		"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678": azureVpcResourcesUnwrapped,
+		"/subscriptions/12345678-9abc-def0-1234-56789abcdef0/resourceGroups/test-resource-rg/providers/Microsoft.Network/virtualNetworks/test-resource-rg-vnet-12345678":
+			azureVpcResourcesUnwrapped,
 	};
 
 	beforeEach(() => {
@@ -646,7 +651,11 @@ describe("PhaseOneAccount", () => {
 		const records = await getUnwrappedResourceRecords(result);
 
 		// vpc id's used as keys in records must match the expected ones exactly
-		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(JSON.stringify(Object.getOwnPropertyNames(expectedPhaseOneUnwrappedResources)));
+		expect(JSON.stringify(Object.getOwnPropertyNames(records))).toBe(
+			JSON.stringify(
+				Object.getOwnPropertyNames(expectedPhaseOneUnwrappedResources),
+			),
+		);
 
 		// unwrapped resource values in records should at least contain the attributes we expect
 		expect(records).toMatchObject(expectedPhaseOneUnwrappedResources);

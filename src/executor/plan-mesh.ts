@@ -2,11 +2,7 @@ import { ToSynthesize } from "../config";
 import { Config, IpV4Address } from "../types/new-types";
 
 import { Targeter } from "./targeter";
-import {
-	AccountType,
-	PhaseOneVpc,
-	buildPhase1Result,
-} from "./phase-one";
+import { AccountType, PhaseOneVpc, buildPhase1Result } from "./phase-one";
 import { isPresent, overlappingCidrsExist } from "../utils";
 
 import * as aws from "@pulumi/aws";
