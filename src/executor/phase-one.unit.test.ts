@@ -11,6 +11,7 @@ pulumi.runtime.setMocks(
 		} {
 			switch (args.type) {
 				case "aws:ec2/vpnGateway:VpnGateway":
+				{
 					awsCounter++;
 					return {
 						id: `sg-111111-${awsCounter}`,
@@ -20,7 +21,9 @@ pulumi.runtime.setMocks(
 							name: args.name + "-sg", //args.inputs.name || args.name + "-sg",
 						},
 					};
+				}
 				case "azure-native:network:VirtualNetworkGateway":
+				{
 					return {
 						id: "sg-87654321",
 						state: {
@@ -29,7 +32,9 @@ pulumi.runtime.setMocks(
 							name: args.inputs.name || args.name,
 						},
 					};
+				}
 				case "gcp:compute/vPNGateway:VPNGateway":
+				{
 					return {
 						id: "sg-55555555",
 						state: {
@@ -38,7 +43,9 @@ pulumi.runtime.setMocks(
 							name: args.inputs.name || args.name,
 						},
 					};
+				}
 				case "azure-native:network:PublicIPAddress":
+				{
 					return {
 						id: "sg-22222222",
 						state: {
@@ -47,7 +54,9 @@ pulumi.runtime.setMocks(
 							ipAddress: "10.0.2.2",
 						},
 					};
+				}
 				case "gcp:compute/address:Address":
+				{
 					return {
 						id: "sg-66666666",
 						state: {
@@ -57,7 +66,9 @@ pulumi.runtime.setMocks(
 							address: "172.16.129.1",
 						},
 					};
+				}
 				case "gcp:compute/forwardingRule:ForwardingRule":
+				{
 					forwardingCounter++;
 					return {
 						id: `forwarding-rule-${forwardingCounter}`,
@@ -66,7 +77,9 @@ pulumi.runtime.setMocks(
 							id: `forwarding-rule-${forwardingCounter}`,
 						},
 					};
+				}
 				default:
+				{
 					return {
 						id: `unknown-resource-${args.type}`,
 						state: {
@@ -75,16 +88,20 @@ pulumi.runtime.setMocks(
 							...args.inputs,
 						},
 					};
+				}
 			}
 		},
 		call: function (args: pulumi.runtime.MockCallArgs) {
 			switch (args.token) {
 				case "aws:ec2/getAmi:getAmi":
+				{
 					return {
 						architecture: "x86_64",
 						id: "ami-0eb1f3cdeeb8eed2a",
 					};
+				}
 				case "azure-native:network:getSubnet":
+				{
 					return {
 						id: "subnet-1234-abcd-5678-90ef",
 
@@ -99,11 +116,16 @@ pulumi.runtime.setMocks(
 
 						...args.inputs,
 					};
+				}
 				case "gcp:compute/getNetwork:getNetwork":
+				{
 					return {
 						id: "network-5678-1234-abcd-90ef",
 
-						//
+						// NOTE: Most of the fields below can be omitted from a gcp getNetwork()
+						// call, but need to be explicitly mentioned on building the
+						// pulumi.runtime.MockCallResult due to compiler restrictions. Therefore,
+						// we supply reasonable would-be defaults here.
 						description: "",
 						gatewayIpv4: "172.16.129.10",
 						selfLink: "",
@@ -111,12 +133,15 @@ pulumi.runtime.setMocks(
 
 						...args.inputs,
 					};
+				}
 				default:
+				{
 					return {
 						// NOTE: id is chosen to make it easy to debug problems
 						id: `undefined-call-${args.token}`,
 						...args.inputs,
 					};
+				}
 			}
 		},
 	},
