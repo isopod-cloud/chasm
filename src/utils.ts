@@ -197,8 +197,3 @@ export async function readFromConfigFile(
 		JSON.parse(await fsPromise.readFile(filePath, "utf8")),
 	);
 }
-
-// Convert a pulumi.Output to a promise of the same type.
-export function promiseOf<T>(output: pulumi.Output<T>): Promise<T> {
-	return new Promise((resolve) => output.apply(resolve));
-}

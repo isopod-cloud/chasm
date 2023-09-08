@@ -5,10 +5,7 @@ let forwardingCounter = 0;
 
 pulumi.runtime.setMocks(
 	{
-		newResource: function (args: pulumi.runtime.MockResourceArgs): {
-			id: string;
-			state: any;
-		} {
+		newResource: (args: pulumi.runtime.MockResourceArgs) => {
 			switch (args.type) {
 				case "aws:ec2/vpnGateway:VpnGateway": {
 					awsCounter++;
@@ -73,18 +70,13 @@ pulumi.runtime.setMocks(
 					};
 				}
 				default: {
-					return {
-						id: `unknown-resource-${args.type}`,
-						state: {
-							// NOTE: id is chosen to make it easy to debug problems
-							id: `unknown-resource-${args.type}`,
-							...args.inputs,
-						},
-					};
+					throw new Error(
+						`unrecognized resource type: ${args.type} with inputs: ${args.inputs}`,
+					);
 				}
 			}
 		},
-		call: function (args: pulumi.runtime.MockCallArgs) {
+		call: (args: pulumi.runtime.MockCallArgs) => {
 			switch (args.token) {
 				case "aws:ec2/getAmi:getAmi": {
 					return {
@@ -125,11 +117,9 @@ pulumi.runtime.setMocks(
 					};
 				}
 				default: {
-					return {
-						// NOTE: id is chosen to make it easy to debug problems
-						id: `undefined-call-${args.token}`,
-						...args.inputs,
-					};
+					throw new Error(
+						`unrecognized call token: ${args.token} with inputs: ${args.inputs}`,
+					);
 				}
 			}
 		},
@@ -155,13 +145,330 @@ import {
 	AzurePhaseOneResource,
 	AwsPhaseOneResource,
 	PhaseOneVpc,
-	AwsPhaseOneResourceUnwrapped,
-	GcpPhaseOneResourceUnwrapped,
-	AzurePhaseOneResourceUnwrapped,
-	PhaseOneResourceUnwrapped,
-	getUnwrappedResourceRecords,
 } from "./phase-one";
 import { isPresent } from "../utils";
+import { promiseOf } from "../testUtils";
+
+// NOTE: There are other attributes in the pulumi aws objects, but these unwrapped ones are the
+// ones we care to extract for now. Also, At the moment, we only unwrap for testing, but in future
+// there might be non-test situations where unwrapping aws resources is useful.
+interface AwsVpnGatewayUnwrapped {
+	id: string;
+	vpcId: string;
+	tags: Record<string, string> | undefined;
+}
+
+interface AwsPhaseOneResourceUnwrapped {
+	vpnGateway: AwsVpnGatewayUnwrapped;
+}
+
+async function unwrapAwsResource(
+	resource: AwsPhaseOneResource,
+): Promise<AwsPhaseOneResourceUnwrapped> {
+	return await promiseOf(
+		pulumi
+			.all([
+				resource.vpnGateway.id,
+				resource.vpnGateway.vpcId,
+				resource.vpnGateway.tags,
+			])
+			.apply(([id, vpcId, tags]) => {
+				return pulumi.output({
+					vpnGateway: {
+						id,
+						vpcId,
+						tags,
+					},
+				});
+			}),
+	);
+}
+
+// NOTE: There are other attributes in the pulumi gcp objects, but these unwrapped ones are the
+// ones we care to extract for now. Also, At the moment, we only unwrap for testing, but in future
+// there might be non-test situations where unwrapping gcp resources is useful.
+//
+// NOTE: The "or undefined" in the member types below are imposed by pulumi gcp forwarding rules at
+// build-time. In truth, only portRange is optional, all other attributes should always be present.
+interface GcpForwaringRuleUnwrapped {
+	id: string | undefined;
+	name: string | undefined;
+
+	// TODO: After unwrapping ipAddress from the pulumi gcp object, we get a string, but we can
+	// decide if it is helpful to convert this to a formal IpV4Address object
+	ipAddress: string | undefined;
+	ipProtocol: string | undefined;
+	region: string | undefined;
+
+	target: string | undefined;
+	portRange: string | undefined;
+}
+
+interface GcpForwardingRulesUnwrapped {
+	esp: GcpForwaringRuleUnwrapped;
+	ipsec: GcpForwaringRuleUnwrapped;
+	ipsecNat: GcpForwaringRuleUnwrapped;
+}
+
+interface GcpVpnGatewayUnwrapped {
+	id: string;
+	region: string;
+	name: string;
+}
+
+interface GcpPublicIpUnwrapped {
+	id: string;
+
+	// TODO: After unwrapping ipAddress from the pulumi gcp object, we get a string, but we can
+	// decide if it is helpful to convert this to a formal IpV4Address object
+	address: string;
+
+	labels: Record<string, string> | undefined;
+}
+
+interface GcpPhaseOneResourceUnwrapped {
+	network: gcp.compute.GetNetworkResult;
+	vpnGateway: GcpVpnGatewayUnwrapped;
+	publicIp: GcpPublicIpUnwrapped;
+	forwardingRules: GcpForwardingRulesUnwrapped;
+}
+
+async function unwrapGcpResource(
+	resource: GcpPhaseOneResource,
+): Promise<GcpPhaseOneResourceUnwrapped> {
+	// NOTE: pulumi.all() and apply() have a cap for max # of static pulumi Output parameters you
+	// can pass into them. Therefore, we build one object just with the forwardingRules and pass
+	// that into a subsequent invocation on pulumi.all() and apply() using the remainder of the
+	// attributes. This is the simplest way to work around this limit.
+	const forwardingRules: pulumi.Output<GcpForwardingRulesUnwrapped> = pulumi
+		.all([
+			resource.forwardingRules.esp.id,
+			resource.forwardingRules.esp.name,
+			resource.forwardingRules.esp.ipAddress,
+			resource.forwardingRules.esp.ipProtocol,
+			resource.forwardingRules.esp.region,
+			resource.forwardingRules.esp.target,
+			resource.forwardingRules.esp.portRange,
+
+			resource.forwardingRules.ipsec.id,
+			resource.forwardingRules.ipsec.name,
+			resource.forwardingRules.ipsec.ipAddress,
+			resource.forwardingRules.ipsec.ipProtocol,
+			resource.forwardingRules.ipsec.region,
+			resource.forwardingRules.ipsec.target,
+			resource.forwardingRules.ipsec.portRange,
+
+			resource.forwardingRules.ipsecNat.id,
+			resource.forwardingRules.ipsecNat.name,
+			resource.forwardingRules.ipsecNat.ipAddress,
+			resource.forwardingRules.ipsecNat.ipProtocol,
+			resource.forwardingRules.ipsecNat.region,
+			resource.forwardingRules.ipsecNat.target,
+			resource.forwardingRules.ipsecNat.portRange,
+		])
+		.apply(
+			([
+				forwardingRulesEspId,
+				forwardingRulesEspName,
+				forwardingRulesEspIpAddress,
+				forwardingRulesEspIpProtocol,
+				forwardingRulesEspRegion,
+				forwardingRulesEspTarget,
+				forwardingRulesEspPortRange,
+
+				forwardingRulesIpSecId,
+				forwardingRulesIpSecName,
+				forwardingRulesIpSecIpAddress,
+				forwardingRulesIpSecIpProtocol,
+				forwardingRulesIpSecRegion,
+				forwardingRulesIpSecTarget,
+				forwardingRulesIpSecPortRange,
+
+				forwardingRulesIpSecNatId,
+				forwardingRulesIpSecNatName,
+				forwardingRulesIpSecNatIpAddress,
+				forwardingRulesIpSecNatIpProtocol,
+				forwardingRulesIpSecNatRegion,
+				forwardingRulesIpSecNatTarget,
+				forwardingRulesIpSecNatPortRange,
+			]) => {
+				return pulumi.output({
+					esp: {
+						id: forwardingRulesEspId,
+						name: forwardingRulesEspName,
+						ipAddress: forwardingRulesEspIpAddress,
+						ipProtocol: forwardingRulesEspIpProtocol,
+						region: forwardingRulesEspRegion,
+						target: forwardingRulesEspTarget,
+						portRange: forwardingRulesEspPortRange,
+					},
+					ipsec: {
+						id: forwardingRulesIpSecId,
+						name: forwardingRulesIpSecName,
+						ipAddress: forwardingRulesIpSecIpAddress,
+						ipProtocol: forwardingRulesIpSecIpProtocol,
+						region: forwardingRulesIpSecRegion,
+						target: forwardingRulesIpSecTarget,
+						portRange: forwardingRulesIpSecPortRange,
+					},
+					ipsecNat: {
+						id: forwardingRulesIpSecNatId,
+						name: forwardingRulesIpSecNatName,
+						ipAddress: forwardingRulesIpSecNatIpAddress,
+						ipProtocol: forwardingRulesIpSecNatIpProtocol,
+						region: forwardingRulesIpSecNatRegion,
+						target: forwardingRulesIpSecNatTarget,
+						portRange: forwardingRulesIpSecNatPortRange,
+					},
+				});
+			},
+		);
+
+	return await promiseOf(
+		pulumi
+			.all([
+				resource.network,
+				resource.vpnGateway.id,
+				resource.vpnGateway.region,
+				resource.vpnGateway.name,
+				resource.publicIp.id,
+				resource.publicIp.address,
+				resource.publicIp.labels,
+				forwardingRules,
+			])
+			.apply(
+				([
+					network,
+					vpnGatewayId,
+					vpnGatewayRegion,
+					vpnGatewayName,
+					publicIpId,
+					publicIpAddress,
+					publicIpLabels,
+					forwardingRules,
+				]) => {
+					return pulumi.output({
+						network,
+						vpnGateway: {
+							id: vpnGatewayId,
+							region: vpnGatewayRegion,
+							name: vpnGatewayName,
+						},
+						publicIp: {
+							id: publicIpId,
+							address: publicIpAddress,
+							labels: publicIpLabels,
+						},
+						forwardingRules,
+					});
+				},
+			),
+	);
+}
+
+// NOTE: There are other attributes in the pulumi azure objects, but these unwrapped ones are the
+// ones we care to extract for now. Also, At the moment, we only unwrap for testing, but in future
+// there might be non-test situations where unwrapping azure resources is useful.
+interface AzurePublicIpUnwrapped {
+	id: string;
+
+	// TODO: After unwrapping ipAddress from the pulumi azure object, if it's not undefined, then
+	// we get a string, but we can decide if it is helpful to convert this to a formal IpV4Address
+	// object
+	ipAddress: string | undefined;
+}
+
+interface AzureVpnGatewayUnwrapped {
+	id: string;
+	name: string;
+	tags: Record<string, string> | undefined;
+}
+
+interface AzurePhaseOneResourceUnwrapped {
+	gatewaySubnet: azure.network.GetSubnetResult;
+	publicIp: AzurePublicIpUnwrapped;
+	vpnGateway: AzureVpnGatewayUnwrapped;
+}
+
+async function unwrapAzureResource(
+	resource: AzurePhaseOneResource,
+): Promise<AzurePhaseOneResourceUnwrapped> {
+	return await promiseOf(
+		pulumi
+			.all([
+				resource.gatewaySubnet,
+				resource.publicIp.id,
+				resource.publicIp.ipAddress,
+				resource.vpnGateway.id,
+				resource.vpnGateway.name,
+				resource.vpnGateway.tags,
+			])
+			.apply(
+				([
+					gatewaySubnet,
+					publicIpId,
+					publicIpAddress,
+					vpnGatewayId,
+					vpnGatewayName,
+					vpnGatewayTags,
+				]) => {
+					return pulumi.output({
+						gatewaySubnet,
+						publicIp: {
+							id: publicIpId,
+							ipAddress: publicIpAddress,
+						},
+						vpnGateway: {
+							id: vpnGatewayId,
+							name: vpnGatewayName,
+							tags: vpnGatewayTags,
+						},
+					});
+				},
+			),
+	);
+}
+
+type PhaseOneResourceUnwrapped =
+	| AwsPhaseOneResourceUnwrapped
+	| AzurePhaseOneResourceUnwrapped
+	| GcpPhaseOneResourceUnwrapped;
+
+// given an array of phase one accounts, we extract all resources and unwrap them, building them
+// into a record with vpc id's as the key
+async function getUnwrappedResourceRecords(
+	accounts: PhaseOneAccount[],
+): Promise<Record<string, PhaseOneResourceUnwrapped>> {
+	const records: Record<string, PhaseOneResourceUnwrapped> = {};
+	for (const account of accounts) {
+		for (const vpcId in account.vpcs) {
+			switch (account.type) {
+				case AccountType.AwsAccount: {
+					records[vpcId] = await unwrapAwsResource(
+						account.vpcs[vpcId].resource,
+					);
+					break;
+				}
+				case AccountType.AzureAccount: {
+					records[vpcId] = await unwrapAzureResource(
+						account.vpcs[vpcId].resource,
+					);
+					break;
+				}
+				case AccountType.GcpAccount: {
+					records[vpcId] = await unwrapGcpResource(
+						account.vpcs[vpcId].resource,
+					);
+					break;
+				}
+				default: {
+					throw new Error(`unsupported Account Type`);
+				}
+			}
+		}
+	}
+	return records;
+}
 
 // NOTE: These types are only used in this one unit test file to build vpc objects without a
 // resource attribute, so we declare them here, but if they become useful elsewhere, then we
