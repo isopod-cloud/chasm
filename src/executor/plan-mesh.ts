@@ -2,13 +2,7 @@ import { ToSynthesize } from "../config";
 import { Config, IpV4Address } from "../types/new-types";
 
 import { Targeter } from "./targeter";
-import {
-	AccountType,
-	AwsPhaseOneVpc,
-	AzurePhaseOneVpc,
-	GcpPhaseOneVpc,
-	buildPhase1Result,
-} from "./phase-one";
+import { AccountType, PhaseOneVpc, buildPhase1Result } from "./phase-one";
 import { isPresent, overlappingCidrsExist } from "../utils";
 
 import * as aws from "@pulumi/aws";
@@ -53,7 +47,7 @@ async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							const dstPhaseOneResource = (dstVpc as AzurePhaseOneVpc).resource;
+							const dstPhaseOneResource = dstVpc.resource;
 							if (isPresent(dstPhaseOneResource)) {
 								targeter.set(
 									`${srcVpc}->${dstVpcId}`,
@@ -70,7 +64,7 @@ async function planMeshInternal(
 							if (srcVpc === dstVpcId) {
 								continue;
 							}
-							const dstPhaseOneResource = (dstVpc as GcpPhaseOneVpc).resource;
+							const dstPhaseOneResource = dstVpc.resource;
 							if (isPresent(dstPhaseOneResource)) {
 								targeter.set(
 									`${srcVpc}->${dstVpcId}`,
@@ -93,7 +87,7 @@ async function planMeshInternal(
 	/* We need to get rid of the enum for phase1 result to fix the typing system*/
 	const allCidrs: string[] = [];
 	for (const acct of phase1Result) {
-		for (const [_key, vpc] of Object.entries(acct.vpcs)) {
+		for (const [_key, vpc] of Object.entries<PhaseOneVpc>(acct.vpcs)) {
 			for (const cidr of vpc.cidrs) {
 				allCidrs.push(cidr);
 			}
@@ -116,8 +110,8 @@ async function planMeshInternal(
 
 					switch (srcAccount.type) {
 						case AccountType.AwsAccount: {
-							const srcResource = (srcAccount.vpcs[srcVpc] as AwsPhaseOneVpc)
-								.resource;
+							const srcVpcAws = srcAccount.vpcs[srcVpc];
+							const srcResource = srcVpcAws.resource;
 							if (isPresent(srcResource)) {
 								const srcVpnGateway = srcResource.vpnGateway;
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
@@ -243,7 +237,7 @@ async function planMeshInternal(
 							break;
 						}
 						case AccountType.AzureAccount: {
-							const srcVpcAzure = srcAccount.vpcs[srcVpc] as AzurePhaseOneVpc;
+							const srcVpcAzure = srcAccount.vpcs[srcVpc];
 							const srcResource = srcVpcAzure.resource;
 							if (isPresent(srcResource)) {
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
@@ -316,7 +310,7 @@ async function planMeshInternal(
 							break;
 						}
 						case AccountType.GcpAccount: {
-							const srcVpcGcp = srcAccount.vpcs[srcVpc] as GcpPhaseOneVpc;
+							const srcVpcGcp = srcAccount.vpcs[srcVpc];
 							const srcResource = srcVpcGcp.resource;
 							if (isPresent(srcResource)) {
 								const targetIp = targeter.get(`${srcVpc}->${dstVpc}`);
