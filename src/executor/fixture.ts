@@ -40,7 +40,6 @@ export const provisionNetwork = async (args: ToSynthesize): Promise<void> => {
 			}
 		}
 	}
-
 	const config = args.accounts;
 	const stream = getPulumiOutputStream(args);
 

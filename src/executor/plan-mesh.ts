@@ -112,7 +112,7 @@ const gcpMakeFirewallPolicy = (
 		`firewall-policy/${vpc.id}`,
 		{
 			project: vpc.projectName,
-			name: pulumi.interpolate`Allow-${vpc.id.split("/").slice(-1)[0]}`,
+			name: pulumi.interpolate`allow${vpc.id.split("/").slice(-1)[0]}`,
 			description: `Permit all traffic to/from the mesh.`,
 		},
 		{
