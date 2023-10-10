@@ -16,11 +16,11 @@ export async function getSubnets(
 				break;
 			}
 			case "AzureAccount": {
-				// account.vpcs = await Azure.getVpcs(account);
+				account.vpcs = await Azure.getVpcs(account);
 				break;
 			}
 			case "GcpAccount": {
-				// account.vpcs = await GCP.getVpcs(account);
+				account.vpcs = await GCP.getVpcs(account);
 				break;
 			}
 			default: {
