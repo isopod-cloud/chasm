@@ -9,15 +9,25 @@ export async function getSubnets(
 	for (const account of accounts) {
 		switch (account.type) {
 			case "AwsAccount": {
-				account.vpcs = await AWS.getVpcs(account);
+				// const start = performance.now()
+				// account.vpcs = await AWS.getVpcs(account);
+				// const end = performance.now()
+				// console.log(`Call to scrape ${account.vpcs.length} AWS VPCs took ${end - start} milliseconds`)
 				break;
 			}
 			case "AzureAccount": {
-				account.vpcs = await Azure.getVpcs(account);
+				// account.vpcs = await Azure.getVpcs(account);
 				break;
 			}
 			case "GcpAccount": {
+				const start = performance.now();
 				account.vpcs = await GCP.getVpcs(account);
+				const end = performance.now();
+				console.log(
+					`Call to scrape ${account.vpcs.length} GCP VPCs took ${
+						end - start
+					} milliseconds`,
+				);
 				break;
 			}
 			default: {
