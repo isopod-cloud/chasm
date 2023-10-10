@@ -1,9 +1,6 @@
-import {
-	NetworksClient,
-	SubnetworksClient,
-	RegionsClient,
-} from "@google-cloud/compute";
+import { NetworksClient, SubnetworksClient } from "@google-cloud/compute";
 import { GcpSubnet, GcpVpc, GcpAccount } from "../types/new-types";
+import { Console } from "console";
 
 export async function getVpcs(account: GcpAccount): Promise<GcpVpc[]> {
 	const netClient = new NetworksClient({});
@@ -12,12 +9,11 @@ export async function getVpcs(account: GcpAccount): Promise<GcpVpc[]> {
 	const startRegions = performance.now();
 	const [nets] = await netClient.list({ project: account.project });
 
-	const vpcs: GcpVpc[] = [];
-
-	// console.log(subnetDetail.length)
 	// This is pretty slow right now, need to find something in between full async (rate limited) and sequential
 	const regions: Set<string> = new Set();
+	const vpcs: GcpVpc[] = [];
 	for (const net of nets) {
+		console.log(net.id, net.name);
 		if (net.subnetworks) {
 			const subnets: GcpSubnet[] = [];
 			for (const subnet of net.subnetworks) {
@@ -40,15 +36,16 @@ export async function getVpcs(account: GcpAccount): Promise<GcpVpc[]> {
 				// 	}),
 				// );
 			}
-			// vpcs.push(
-			// 	GcpVpc.parse({
-			// 		type: "GcpVpc",
-			// 		id: net.id,
-			// 		projectName: account.project,
-			// 		networkName: net.name,
-			// 		subnets,
-			// 	}),
-			// );
+			// console.log(net.subnetworks)
+			vpcs.push(
+				GcpVpc.parse({
+					type: "GcpVpc",
+					id: net.id,
+					projectName: account.project,
+					networkName: net.name,
+					subnets: [],
+				}),
+			);
 		}
 	}
 	const endRegions = performance.now();
@@ -56,19 +53,31 @@ export async function getVpcs(account: GcpAccount): Promise<GcpVpc[]> {
 
 	const startParsing = performance.now();
 	console.log("parsing subnets");
-	// for (const net of nets) {
+	// const netNameToSubnets : Record<string, GcpSubnet[]>;
+	const subnets: GcpSubnet[] = [];
 	for (const region of regions) {
-		const start = performance.now();
 		console.log("searching for region", region);
 		const res = await subnetClient.list({
 			project: account.project,
 			// filter: `network = ${net}`
 			region,
 		});
-		const end = performance.now();
-		console.log(`lookup took ${end - start}ms`);
 		for (const subnet of res[0]) {
-			console.log(subnet.name, subnet.network);
+			for (const vpc of vpcs) {
+				// console.log("checking", vpc.networkName, subnet.network?.split('/networks/')[1])
+				if (vpc.networkName == subnet.network?.split("networks/")[1]) {
+					// console.log("match", vpc.networkName, subnet.network);
+					vpc.subnets?.push(
+						GcpSubnet.parse({
+							id: subnet.id,
+							cidr: subnet.ipCidrRange,
+							type: "GcpSubnet",
+							region,
+						}),
+					);
+					break;
+				}
+			}
 		}
 	}
 	const endParsing = performance.now();
