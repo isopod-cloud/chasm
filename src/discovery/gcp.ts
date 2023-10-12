@@ -32,7 +32,7 @@ export async function getVpcs(account: GcpAccount): Promise<GcpVpc[]> {
 	}
 	const endRegions = performance.now();
 	console.log(
-		`searching up all GCP regions took ${endRegions - startRegions}ms`,
+		`looking up all GCP regions took ${endRegions - startRegions}ms`,
 	);
 
 	const startParsing = performance.now();
