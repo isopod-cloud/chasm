@@ -36,9 +36,9 @@ async function main() {
 			writeFileSync(options.outputFile, JSON.stringify(discovered, null, 2), {
 				flag: "w",
 			});
-			// console.info({
-			// 	"discovered-subnets": JSON.stringify(discovered, null, 2),
-			// });
+			console.info({
+				"discovered-subnets": JSON.stringify(discovered, null, 2),
+			});
 		});
 	const meshCmd = new Command("mesh")
 		.command("mesh")
