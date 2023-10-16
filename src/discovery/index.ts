@@ -9,7 +9,10 @@ export async function getSubnets(
 	for (const account of accounts) {
 		switch (account.type) {
 			case "AwsAccount": {
+				const start = performance.now();
 				account.vpcs = await AWS.getVpcs(account);
+				const end = performance.now();
+				console.log(`Took ${end - start} ms to lookup AWS subnets`);
 				break;
 			}
 			case "AzureAccount": {
